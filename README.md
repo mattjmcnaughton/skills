@@ -7,8 +7,8 @@ Remote skills from other git repos are managed separately by [`skillvendor`](../
 ## Install
 
 ```bash
-ln -sfn "$(pwd)" ~/.claude/skills
-ln -sfn "$(pwd)" ~/.codex/skills
+ln -sfn "$(pwd)/skills" ~/.claude/skills
+ln -sfn "$(pwd)/skills" ~/.codex/skills
 ```
 
 Both clients discover any subdirectory containing a `SKILL.md`.
@@ -53,6 +53,8 @@ skills/
 ├── create-pr/SKILL.md
 ├── review-pr/SKILL.md
 └── merge-pr/SKILL.md
+README.md
+LICENSE
 ```
 
 ## License
