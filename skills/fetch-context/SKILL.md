@@ -2,26 +2,30 @@
 name: fetch-context
 description: >-
   Pull external context into the current repo: up-to-date library documentation
-  via `context7-cli`, and full upstream source code via shallow `git clone` into
-  `.agentic/sources/<repo>/`. Use whenever the user asks about a specific
+  via `context7-cli`, full upstream source code via shallow `git clone` into
+  `.agentic/sources/<repo>/`, or arbitrary web pages cleaned to markdown via
+  `https://r.jina.ai/<URL>`. Use whenever the user asks about a specific
   library, framework, SDK, or CLI tool — even well-known ones — since training
   data may not reflect recent API changes. Also use when the user wants to read,
-  grep, or reference an upstream project's source locally.
+  grep, or reference an upstream project's source locally, or when they hand you
+  a URL to read.
 
   Always use for: API syntax questions, configuration options, version migration
   issues, "how do I" questions mentioning a library name, debugging
-  library-specific behavior, and any request to "go read the source of X" or
-  "clone X so we can look at it".
+  library-specific behavior, any request to "go read the source of X" or
+  "clone X so we can look at it", and any request to read/summarize/extract from
+  a specific URL.
 ---
 
 # fetch-context
 
-Two ways to bring external context into the working directory:
+Three ways to bring external context into the working directory:
 
 1. **Docs** — query Context7 via `context7-cli` for current documentation and code snippets.
 2. **Source** — shallow-clone an upstream git repo into `.agentic/sources/<repo>/` so Read/Grep can use it directly.
+3. **URL** — fetch a specific web page through `https://r.jina.ai/<URL>` to get a clean markdown rendering.
 
-Use docs first for API questions. Reach for a source clone when docs aren't enough — when the user wants to read implementation details, grep across the codebase, or trace behavior the docs don't cover.
+Use docs first for API questions. Reach for a source clone when docs aren't enough — when the user wants to read implementation details, grep across the codebase, or trace behavior the docs don't cover. Use the URL path when the user gives you (or points you at) a specific page — blog post, RFC, changelog, GitHub issue, vendor docs page — that isn't in Context7 and doesn't warrant a clone.
 
 ---
 
@@ -146,12 +150,49 @@ After cloning, use Read/Grep/Glob directly on `.agentic/sources/<repo>/`. Treat 
 
 ---
 
+## URL: `https://r.jina.ai/`
+
+When the user hands you a URL (or names a specific page), fetch it via Jina's reader proxy: prepend `https://r.jina.ai/` to the original URL. The proxy fetches the page, strips boilerplate, and returns clean markdown — much easier to read than raw HTML.
+
+### Process
+
+1. **Take the original URL as-is** — keep the full scheme, host, path, and query string. Do not URL-encode it; r.jina.ai expects the URL appended literally.
+
+   ```
+   https://r.jina.ai/https://example.com/some/page?x=1
+   ```
+
+2. **Fetch via WebFetch** with the wrapped URL. Pass the user's question as the prompt so the response is filtered to what they actually want:
+
+   ```
+   WebFetch(url="https://r.jina.ai/https://example.com/some/page", prompt="<user's question>")
+   ```
+
+   If WebFetch isn't a fit (e.g. you need the raw body), `curl -sSL https://r.jina.ai/<URL>` works too.
+
+3. **Report the source URL** in your response so the user can verify what you read.
+
+### When to use it
+
+- User pastes a URL and asks you to read, summarize, or extract from it.
+- User references a specific page ("the changelog for X", "that RFC", "the GitHub issue we linked yesterday") and you have the URL.
+- A Context7 doc or source-code search points you at a specific external page worth reading in full.
+
+### When NOT to use it
+
+- For library API questions, prefer `context7-cli` — it's curated and faster.
+- For exploring a project's code, prefer a source clone — grep/read works locally.
+- Never wrap a URL that contains secrets in the path or query string (tokens, signed URLs, session IDs) — it gets sent to a third-party proxy. Strip or refuse.
+- Don't use it for URLs you fabricated. Only fetch URLs the user provided or that you obtained from a trusted source (Context7 results, the user's repo, etc.).
+
+---
+
 ## Guidelines
 
 - **Prefer docs over source for API questions** — docs are curated and faster to scan. Clone only when you need implementation detail.
 - **Don't rely on training data for API details** — signatures, options, and version-specific behavior drift. Run `context7-cli` even for libraries you "know".
 - **Surface quota errors honestly.** If `context7-cli` fails with a quota or auth error, tell the user, then answer from training knowledge with an explicit caveat that it may be outdated. Never silently fall back.
 - **Library IDs need the leading slash** — `/facebook/react`, not `facebook/react`.
-- **Never put secrets in queries** — `context7-cli` queries are sent to a third-party API.
+- **Never put secrets in queries or URLs** — `context7-cli` queries and `r.jina.ai`-wrapped URLs are both sent to third-party services.
 - **`.agentic/sources/` is gitignored** — clones won't pollute the host repo. Don't `git add` anything inside it.
 - **Don't `cd` into a clone** — operate on it via absolute or repo-root-relative paths so your shell stays in the host repo.
