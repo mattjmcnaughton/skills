@@ -52,6 +52,8 @@ The user usually provides one of:
    ```
    If `-d` rejects an "unmerged" branch (common after a rebase-merge upstream — the local SHA no longer matches), warn the user and ask before falling back to `-D`.
 
+   Note: if the user already ran `/merge-pr`, the local branch is usually already gone — `gh pr merge --delete-branch` deletes it when the checkout was on the PR branch with no unpushed work. In that case `git branch -d` will return `branch '<branch>' not found`; treat that as success and move on.
+
 7. **Report.**
    ```
    Removed worktree: <path>

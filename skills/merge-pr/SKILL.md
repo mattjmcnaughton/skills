@@ -18,7 +18,7 @@ Merge the PR for the current branch (or a specified PR) using `gh pr merge --reb
    gh pr view --json number,title,headRefName,state,mergeable,mergeStateStatus
    ```
 2. **Branch state.** `git branch --show-current` and `git rev-parse --abbrev-ref HEAD@{upstream}`.
-3. **Mergeability.** If `mergeStateStatus` is not `CLEAN`, surface the exact value and stop — the user resolves and re-runs.
+3. **Mergeability.** If `mergeStateStatus` is not `CLEAN`, surface the exact value and stop — the user resolves and re-runs. Exception: if `mergeable` is `UNMERGEABLE` (or `UNKNOWN`), wait 15 seconds and re-query once before surfacing — GitHub sometimes returns this while it's still computing mergeability right after a push.
 
 ## Confirm
 
@@ -38,6 +38,7 @@ Proceed? (y/n)
    ```bash
    gh pr merge <N> --rebase --delete-branch
    ```
+   Side effects worth knowing: when the local checkout is on the PR branch and has no unpushed work, `gh` switches the checkout to the base branch, fast-forwards it to the merged commit, and deletes the local branch. The local remote-tracking ref (`refs/remotes/origin/<branch>`) is not cleaned up automatically — run `git remote prune origin` if it lingers.
 2. **Report** the result, including the merged PR URL.
 
 ## Guidelines
