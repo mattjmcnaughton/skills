@@ -5,15 +5,21 @@ description: Explore and query Parquet files on S3-compatible storage or local f
 
 # parquet-duckdb
 
-Use the DuckDB CLI to investigate and query Parquet files — either on the local filesystem or S3-compatible block storage (AWS S3, MinIO, R2, etc.). Auth is handled entirely via environment variables.
+Use the DuckDB CLI to investigate and query Parquet files — either on the local filesystem or S3-compatible block storage (AWS S3, MinIO, R2, etc.).
 
 ## CLI
 
+Use the `duckdb-parquet` wrapper script. It handles httpfs installation, secret creation, and credential management so that credentials never appear in SQL strings.
+
 ```bash
-duckdb -c "<sql>"
+./skills/parquet-duckdb/duckdb-parquet.sh <backend> "<sql>"
 ```
 
-For S3 sources, prepend the httpfs setup to every command (see Auth below).
+| Backend | Description | Required env vars |
+|---|---|---|
+| `local` | Local filesystem — no auth needed | — |
+| `s3` | AWS S3 — uses credential chain (env vars, config files, SSO, instance metadata) | Standard AWS credentials |
+| `minio` | MinIO or S3-compatible storage | `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_ENDPOINT` |
 
 ---
 
@@ -32,38 +38,29 @@ For S3 sources, prepend the httpfs setup to every command (see Auth below).
 
 ### Local filesystem
 
-No setup needed.
+No setup needed — use the `local` backend.
 
 ### AWS S3
 
-```bash
-duckdb -c "
-INSTALL httpfs; LOAD httpfs;
-SET s3_region='${AWS_DEFAULT_REGION:-us-east-1}';
-SET s3_access_key_id='$AWS_ACCESS_KEY_ID';
-SET s3_secret_access_key='$AWS_SECRET_ACCESS_KEY';
--- your query here
-"
-```
-
-Include `SET s3_session_token='$AWS_SESSION_TOKEN';` when using temporary credentials.
-
-### S3-compatible (MinIO, R2, etc.)
+Uses DuckDB's `credential_chain` provider, which automatically resolves credentials from environment variables, `~/.aws/credentials`, SSO, STS, or EC2 instance metadata. No secrets appear in the SQL.
 
 ```bash
-duckdb -c "
-INSTALL httpfs; LOAD httpfs;
-SET s3_region='us-east-1';
-SET s3_access_key_id='$AWS_ACCESS_KEY_ID';
-SET s3_secret_access_key='$AWS_SECRET_ACCESS_KEY';
-SET s3_endpoint='your-endpoint-host:port';
-SET s3_use_ssl=false;
-SET s3_url_style='path';
--- your query here
-"
+./skills/parquet-duckdb/duckdb-parquet.sh s3 "SELECT * FROM 's3://bucket/file.parquet'"
 ```
 
-Strip the `https://` or `http://` prefix from `AWS_ENDPOINT_URL` when setting `s3_endpoint`.
+### MinIO / S3-compatible
+
+Requires `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, and `MINIO_ENDPOINT` (host:port, no scheme). The wrapper maps these to AWS env vars for the process and uses `credential_chain` with `CHAIN 'env'`, so credentials never appear in the SQL string.
+
+```bash
+export MINIO_ACCESS_KEY_ID='...'
+export MINIO_SECRET_ACCESS_KEY='...'
+export MINIO_ENDPOINT='minio.example.com:9000'
+
+./skills/parquet-duckdb/duckdb-parquet.sh minio "SELECT * FROM 's3://bucket/file.parquet'"
+```
+
+`MINIO_ENDPOINT` should be host:port without the `http://` or `https://` prefix.
 
 ---
 
@@ -72,19 +69,19 @@ Strip the `https://` or `http://` prefix from `AWS_ENDPOINT_URL` when setting `s
 ### Schema
 
 ```bash
-duckdb -c "DESCRIBE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
+./skills/parquet-duckdb/duckdb-parquet.sh local "DESCRIBE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
 ```
 
 ### Sample
 
 ```bash
-duckdb -c "SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true) LIMIT 20"
+./skills/parquet-duckdb/duckdb-parquet.sh local "SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true) LIMIT 20"
 ```
 
 ### Stats
 
 ```bash
-duckdb -c "SUMMARIZE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
+./skills/parquet-duckdb/duckdb-parquet.sh local "SUMMARIZE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
 ```
 
 Returns per-column count, null percentage, min, max, mean, std, and quartiles.
@@ -94,9 +91,9 @@ Returns per-column count, null percentage, min, max, mean, std, and quartiles.
 Register the source as a view named `data` then query freely:
 
 ```bash
-duckdb -c "
+./skills/parquet-duckdb/duckdb-parquet.sh minio "
 CREATE VIEW data AS
-  SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true);
+  SELECT * FROM read_parquet('s3://bucket/events/**/*.parquet', union_by_name=true);
 SELECT event_type, count(*) AS n FROM data GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 "
 ```
@@ -104,7 +101,7 @@ SELECT event_type, count(*) AS n FROM data GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 ### List files
 
 ```bash
-duckdb -c "SELECT * FROM glob('/data/events/**/*.parquet')"
+./skills/parquet-duckdb/duckdb-parquet.sh local "SELECT * FROM glob('/data/events/**/*.parquet')"
 ```
 
 ---
