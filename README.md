@@ -29,9 +29,20 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/create-commit` | Conventional Commits message for staged changes (or a specified scope) |
 | `/create-pr` | Push the branch and open a GitHub PR with title/body derived from `plan.md` + `diary.md` |
 | `/review-pr` | Review an open GitHub PR (yours or others'); adapts depth via mode (iteration/standard/critical/security) |
-| `/merge-pr` | Merge a PR, prune the worktree and branch, mark linked issue Done |
+| `/merge-pr` | Merge an approved PR via rebase and delete the remote branch |
+| `/delete-worktree` | Tear down the local worktree and branch created by `/create-worktree` |
 
-Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/create-commit` → `/create-pr` → (optional `/review-pr` from a teammate) → `/merge-pr`. `/rehydrate` slots in anywhere after `/prep`.
+Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/create-commit` → `/create-pr` → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`.
+
+### Other skills
+
+Standalone helpers, not part of the coding loop.
+
+| Skill | Role |
+|---|---|
+| `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review`. |
+| `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
+| `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
 
 ## Conventions
 
@@ -44,15 +55,21 @@ Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → 
 
 ```
 skills/
-├── prep/SKILL.md
 ├── build/SKILL.md
-├── review/SKILL.md
-├── rehydrate/SKILL.md
-├── create-worktree/SKILL.md
 ├── create-commit/SKILL.md
 ├── create-pr/SKILL.md
+├── create-worktree/SKILL.md
+├── delete-worktree/SKILL.md
+├── fetch-context/SKILL.md
+├── merge-pr/SKILL.md
+├── parquet-duckdb/
+│   ├── SKILL.md
+│   └── duckdb-parquet.sh
+├── prep/SKILL.md
+├── rehydrate/SKILL.md
+├── review/SKILL.md
 ├── review-pr/SKILL.md
-└── merge-pr/SKILL.md
+└── update-docs/SKILL.md
 README.md
 LICENSE
 ```
