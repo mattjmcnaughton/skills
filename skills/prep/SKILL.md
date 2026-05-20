@@ -19,6 +19,23 @@ Conduct a conversational interview to fill the sections below. Build on the user
 
 May fan out to Explore sub-agents in parallel when research spans multiple domains or a subsystem needs deep reading. Use them to find implementation templates (existing features that solve analogous problems) and test fixtures.
 
+### Grilling offers
+
+At three points in this flow, offer to run a grilling skill. Pick which one by checking the repo root:
+
+- If `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` exists → offer `/grill-with-docs`.
+- Otherwise → offer `/grill-me`.
+
+If neither skill is loaded in the current session, skip the offer silently — don't mention it.
+
+The three offer points:
+
+1. **Pre-interview** — before drafting any sections. Stress-tests intent and premise before /prep imposes structure.
+2. **Mid-interview** — after Goal, Optimization target, and Acceptance criteria are drafted; before Implementation approach. Sharpens the "what" before deciding the "how".
+3. **Post-interview** — after Implementation approach is drafted; before writing plan.md. Walks the decision tree while rework is still cheap.
+
+Each offer is a single sentence ("Want to grill this before we move on?"). The user can accept, decline, or defer. If they decline at one point, still offer at the next — each seam exposes different issues.
+
 ### Sections to fill
 
 **Goal.** What we're building, in 1-2 paragraphs. Cite the ticket if relevant.
