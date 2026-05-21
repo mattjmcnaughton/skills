@@ -1,0 +1,43 @@
+services:
+  proxy:
+    image: caddy:alpine
+    command: caddy reverse-proxy --from :8080 --to core:8000
+    networks: [internal, host_access]
+    ports:
+      - "127.0.0.1:18473:8080"
+    depends_on:
+      - core
+    restart: unless-stopped
+
+  core:
+    image: yuzutech/kroki
+    networks: [internal]
+    environment:
+      - KROKI_MERMAID_HOST=mermaid
+      - KROKI_EXCALIDRAW_HOST=excalidraw
+      - KROKI_SAFE_MODE=secure
+    depends_on:
+      - mermaid
+      - excalidraw
+    restart: unless-stopped
+
+  mermaid:
+    image: yuzutech/kroki-mermaid
+    networks: [internal]
+    expose:
+      - "8002"
+    restart: unless-stopped
+
+  excalidraw:
+    image: yuzutech/kroki-excalidraw
+    networks: [internal]
+    expose:
+      - "8004"
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  host_access:
+    driver: bridge
