@@ -20,12 +20,16 @@ The user may also override the slug with phrasing like "use slug AGE-4-custom-na
 
 2. **Pick the worktree path.** Use `.worktrees/<repo>-<slug>/` where `<repo>` is `basename $(git rev-parse --show-toplevel)`. Example: `.worktrees/myapp-AGE-4-add-semantic-indexing`.
 
-3. **Create the worktree and branch.**
+3. **Create the worktree and branch.** Resolve the `<user>` prefix from the shell environment in a single command — use `$USER` (always set on Unix) with `id -F` as a macOS fallback. Do NOT use `git config user.email` chained with `&&`, since it short-circuits when empty and forces retries:
+   ```bash
+   USER_PREFIX="${USER:-$(id -F 2>/dev/null || id -un)}"
+   ```
+   If `USER_PREFIX` is somehow empty, omit the prefix entirely (branch is just `<slug>`). Then:
    ```bash
    mkdir -p .worktrees
-   git worktree add -b <user>/<slug> .worktrees/<repo>-<slug>
+   git worktree add -b "${USER_PREFIX:+$USER_PREFIX/}<slug>" .worktrees/<repo>-<slug>
    ```
-   `<user>` defaults to the local git user; if unset, omit the prefix. If the branch already exists, ask the user how to proceed (use existing, pick a new slug, abort).
+   If the branch already exists, ask the user how to proceed (use existing, pick a new slug, abort).
 
 4. **Run worktree init if available.** From inside the new worktree:
    ```bash
