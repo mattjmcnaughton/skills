@@ -43,6 +43,7 @@ Standalone helpers, not part of the coding loop.
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review`. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
+| `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
 
 ## Conventions
 
@@ -69,6 +70,7 @@ skills/
 ├── rehydrate/SKILL.md
 ├── review/SKILL.md
 ├── review-pr/SKILL.md
+├── setup-permissions/SKILL.md
 └── update-docs/SKILL.md
 README.md
 LICENSE
