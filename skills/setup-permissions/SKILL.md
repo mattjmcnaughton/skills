@@ -147,8 +147,9 @@ PermissionModel {
   allow_fs:      [str],   # safe filesystem-mutating commands within the workspace (e.g., mkdir)
   allow_git_ro:  [str],   # read-only git subcommands
   allow_git_rw:  [str],   # write-side git the agent may run unprompted (add, commit, worktree add)
-  forbid_git:    [str],   # destructive/remote git the agent must NEVER run
 }
+
+The `deny` surface is reserved for **sensitive file reads** — secrets, env files, credentials, and gitignored paths. Git operations are never denied. Destructive commands (`push`, `reset`, `clean`, `rebase`, `cherry-pick`, `checkout`, `restore`, `branch -D`) are simply absent from the allow list, which means the agent will be prompted before running them. This is a deliberate trust posture: hard-block data exfiltration, soft-gate destructive actions via the prompt mechanism.
 ```
 
 Fixed contents (independent of detection):
@@ -157,7 +158,6 @@ Fixed contents (independent of detection):
 - `allow_fs`: `mkdir` (any arguments). The agentic-coding loop creates workspace directories like `.agentic/<slug>/` and `.agentic/sources/<repo>/` without needing a prompt each time. The deny floor still applies to the file contents, and Codex's filesystem-write sandbox confines `mkdir` to the workspace; `Bash(mkdir:*)` in Claude is similarly scoped because the agent only operates inside the working tree.
 - `allow_git_ro`: `status`, `diff`, `log`, `show`, `blame`, `ls-files`, `branch` (no `-d`/`-D`), `rev-parse`, `remote -v`, `worktree list`, `for-each-ref`, `config --get`.
 - `allow_git_rw`: `add`, `commit`, `worktree add`.
-- `forbid_git`: `push`, `reset`, `clean`, `rebase`, `cherry-pick`, `checkout` (when used with `.` or paths — see Claude matcher note below), `restore`, `branch -D`.
 
 Variable contents (depend on detection):
 
@@ -185,9 +185,8 @@ Render to `.claude/settings.json` (the committed, team-shared file) using this m
 | `allow_fs` | `"Bash(mkdir)"` and `"Bash(mkdir:*)"` in `permissions.allow` |
 | `allow_git_ro` | one entry per subcommand: `"Bash(git status)"`, `"Bash(git status:*)"`, etc. The `:*` suffix lets arguments through. |
 | `allow_git_rw` | `"Bash(git add:*)"`, `"Bash(git commit:*)"`, `"Bash(git worktree add:*)"` |
-| `forbid_git` | one entry per subcommand in `permissions.deny`: `"Bash(git push)"`, `"Bash(git push:*)"`, etc. |
 
-Claude's `Bash(git checkout)` matcher has no argument distinction, so we deny `Bash(git checkout)` and `Bash(git checkout:*)` outright. The agent can still ask the user to run a checkout manually.
+Destructive git subcommands are intentionally omitted from both `allow` and `deny`. When the agent tries `git push`, Claude prompts the user; the user can approve case-by-case. The deny list is reserved for sensitive file reads.
 
 ### Worked example (this repo)
 
@@ -230,16 +229,6 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
       "Read"
     ],
     "deny": [
-      "Bash(git branch -D)",
-      "Bash(git checkout)",
-      "Bash(git checkout:*)",
-      "Bash(git cherry-pick:*)",
-      "Bash(git clean:*)",
-      "Bash(git push)",
-      "Bash(git push:*)",
-      "Bash(git rebase:*)",
-      "Bash(git reset:*)",
-      "Bash(git restore:*)",
       "Read(./.env)",
       "Read(./.env.*.local)",
       "Read(./.env.development)",
@@ -349,21 +338,14 @@ prefix_rule(
     decision = "allow",
     justification = "Worktree setup for agentic coding loop.",
 )
-
-# --- git: forbidden ----------------------------------------------------
-prefix_rule(
-    pattern = ["git", ["push", "reset", "clean", "rebase", "cherry-pick",
-                       "checkout", "restore"]],
-    decision = "forbidden",
-    justification = "Destructive or remote-affecting git; run manually.",
-)
 ```
+
+Destructive git subcommands (`push`, `reset`, `clean`, `rebase`, `cherry-pick`, `checkout`, `restore`) are intentionally not listed. The skill takes a permissive posture: `forbidden` is reserved for nothing, `deny` (in the config.toml filesystem table) is reserved for sensitive file reads. Destructive git falls through to Codex's broader approval policy — the `request_permissions = true` setting in the config ensures the user is asked before anything risky proceeds.
 
 Notes:
 
 - `pattern = ["git", ["a", "b", ...]]` matches `git a ...` or `git b ...`; inner-list alternation is token-level.
-- Default decision is `allow`, so omitting a rule does not forbid the command — denials must be explicit.
-- The strictest matching rule wins (`forbidden` > `prompt` > `allow`), so the read-only allow above is correctly overridden by the forbidden push/reset/etc. rule below.
+- Default decision is `allow`, so omitting a rule does not forbid the command. Combined with `approval_policy.granular.request_permissions = true`, unlisted commands route through the user-approval flow rather than running silently.
 - Inner-list alternatives like `worktree, for-each-ref, config` allow common read-only subcommands plus the broader write-side. Sub-subcommand precision (e.g., distinguishing `git remote -v` from `git remote add`) is not expressible in `prefix_rule`; Codex will allow the whole `git remote` prefix here. The audit phase calls this out so the user can downgrade specific commands if needed.
 
 #### Merge rules
@@ -406,7 +388,7 @@ Because the managed set is deterministic, a clean re-run against a managed-only 
 
 #### Scanning `.claude/settings.local.json`
 
-The skill reads the local file (if present) only to detect entries that contradict the managed deny set — e.g., a personal `Bash(git push)` allow that would override the managed forbid. These appear in the audit phase under "Deny-floor overlap" with the file path so the developer can resolve it. The skill never modifies this file.
+The skill reads the local file (if present) only to detect entries that contradict the managed deny set — e.g., a personal `Read(./.env)` allow that would override the managed sensitive-file deny. These appear in the audit phase under "Deny-floor overlap" with the file path so the developer can resolve it. The skill never modifies this file.
 
 ## Phase 3: Docs
 
@@ -431,7 +413,7 @@ Use these commands as the canonical entry points. The agent is preauthorised to 
 | lint-fix| `just lint-fix` | auto-applies safe fixes            |
 | gate    | `just gate`     | full pre-commit gate (lint + test) |
 
-Filesystem scope: agent reads/writes the working tree, including `.agentic/` (agentic-coding workspace) and `.worktrees/` (worktree provisioning). Committed `.env.example` / `.env.sample` / `.env.template` stay readable; live `.env` and the common `.env.local` / `.env.production` / etc. variants are denied. Other `.gitignore` entries are denied. Destructive git (`push`, `reset`, `clean`, `rebase`, `cherry-pick`, `checkout`, `restore`) is forbidden — ask the user to run those manually.
+Filesystem scope: agent reads/writes the working tree, including `.agentic/` (agentic-coding workspace) and `.worktrees/` (worktree provisioning). Committed `.env.example` / `.env.sample` / `.env.template` stay readable; live `.env` and the common `.env.local` / `.env.production` / etc. variants are denied. Other `.gitignore` entries are denied. The deny list contains sensitive-file reads only — destructive git (`push`, `reset`, `clean`, `rebase`, etc.) is not allowlisted but is not hard-blocked either; you'll be prompted to approve before it runs.
 <!-- /managed:setup-permissions -->
 ```
 
@@ -480,7 +462,7 @@ The audit phase prints a plain-text report identifying gaps that would block aut
 
 **Gitignore negations.** If any `.gitignore` lines started with `!`, repeat the warning emitted during detection: those denies need manual review.
 
-**Deny-floor overlap.** Scan both `.claude/settings.json` (committed) and `.claude/settings.local.json` (personal) for `permissions.allow` entries that overlap with the managed deny floor — e.g., a `Read(./.env)` allow, or a `Bash(git push)` allow. Surface each hit with its source file as a security gap. The local file is the more common location for these (developers occasionally allowlist things during a session); the committed file should normally not contain them.
+**Deny-floor overlap.** Scan both `.claude/settings.json` (committed) and `.claude/settings.local.json` (personal) for `permissions.allow` entries that overlap with the sensitive-read deny floor — e.g., a `Read(./.env)` or `Read(./secrets/**)` allow. Surface each hit with its source file as a security gap. The local file is the more common location for these (developers occasionally allowlist things during a session); the committed file should normally not contain them. Git-related entries are not flagged — the deny floor doesn't cover git.
 
 **Stale managed entries.** If existing managed entries no longer correspond to any DetectionResult target (e.g., a `Bash(just legacy-task)` allow when the justfile no longer has `legacy-task`), report them so the user can decide whether to drop them. The skill does not auto-prune — re-running detect should pick up the new state and overwrite cleanly, but stale allows are worth surfacing once.
 
