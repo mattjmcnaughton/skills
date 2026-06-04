@@ -32,7 +32,7 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/merge-pr` | Merge an approved PR via rebase and delete the remote branch |
 | `/delete-worktree` | Tear down the local worktree and branch created by `/create-worktree` |
 
-Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/create-commit` → `/create-pr` → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`.
+Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/create-commit` → `/create-pr` → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
 
 ### Other skills
 
@@ -44,6 +44,7 @@ Standalone helpers, not part of the coding loop.
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
 | `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
+| `/ship-gate` | Fast pre-ship checklist on the branch diff: secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit hygiene, local gate. Optional manual checkpoint before `/create-pr` and `/merge-pr`. |
 
 ## Conventions
 
@@ -71,6 +72,7 @@ skills/
 ├── review/SKILL.md
 ├── review-pr/SKILL.md
 ├── setup-permissions/SKILL.md
+├── ship-gate/SKILL.md
 └── update-docs/SKILL.md
 README.md
 LICENSE
