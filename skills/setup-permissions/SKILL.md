@@ -7,7 +7,7 @@ description: Configure the current repo so an agent (Claude Code or Codex CLI) c
 
 The skill writes to the **committed** `.claude/settings.json`, not the gitignored `.claude/settings.local.json`. Rationale: the runner allowlist and secret-deny floor are project-shared concerns that should reach every contributor without re-running the skill, which matches how the Codex artifacts (`.codex/config.toml`, `.codex/rules/default.rules`) and `AGENTS.md` are already handled. A developer's personal overrides remain in `.claude/settings.local.json`, which the skill **reads** for conflict detection but never writes to.
 
-The skill is **re-runnable**: a second invocation against an unchanged repo produces zero diffs. Existing user-authored entries in the config files are preserved; only the skill's own managed regions are rewritten.
+The skill is **re-runnable** and designed to be invoked repeatedly as the repo evolves. A second invocation against an unchanged repo produces zero diffs. When the managed model changes between runs (new runner targets land, the gitignore grows, the skill itself gains a new category like `allow_utils`), the managed regions are rewritten cleanly to reflect the new model — there is no manual "delete the old config and start fresh" step. Existing user-authored entries outside the managed regions are preserved; non-managed entries that snuck into the managed file are surfaced in the diff preview (see "Claude merge rules" below).
 
 ## Phases
 
@@ -145,6 +145,8 @@ PermissionModel {
   allow_reads:   [str],   # broad read/search across the tree (subtractive: dies on deny_globs)
   allow_runner:  [str],   # canonical runner commands the agent may run unprompted
   allow_fs:      [str],   # safe filesystem-mutating commands within the workspace (e.g., mkdir)
+  allow_diag:    [str],   # diagnostic stdout-only commands (e.g., echo "$EXIT:$?")
+  allow_utils:   [str],   # read-mostly shell text utilities (cat, head, tail, sed, awk, ...)
   allow_git_ro:  [str],   # read-only git subcommands
   allow_git_rw:  [str],   # write-side git the agent may run unprompted (add, commit, worktree add)
 }
@@ -156,6 +158,8 @@ Fixed contents (independent of detection):
 
 - `allow_reads`: `Read`, `Glob`, `Grep` on the entire tree. The deny globs do the narrowing.
 - `allow_fs`: `mkdir` (any arguments). The agentic-coding loop creates workspace directories like `.agentic/<slug>/` and `.agentic/sources/<repo>/` without needing a prompt each time. The deny floor still applies to the file contents, and Codex's filesystem-write sandbox confines `mkdir` to the workspace; `Bash(mkdir:*)` in Claude is similarly scoped because the agent only operates inside the working tree.
+- `allow_diag`: `echo "$EXIT:$?"` (exact form). The post-command exit-code probe used by hook scripts and quick status checks. Read-only, no side effects beyond stdout.
+- `allow_utils`: read-mostly shell text utilities the agent uses in ad-hoc piping and exploration: `cat`, `head`, `tail`, `sed`, `awk`, `wc`, `sort`, `uniq`, `cut`, `tr`, `find`, `rg`, `fd`. Each is allowlisted as `<name>:*` so arguments pass through. Sensitive-file reads are still blocked by the deny floor. Mutating variants (`sed -i`, `find -delete`, `find -exec`) are not separately gated here because the agent already has unrestricted workspace-edit access through the `Edit` and `Write` tools — closing this gap would not raise the security posture, only the prompt rate.
 - `allow_git_ro`: `status`, `diff`, `log`, `show`, `blame`, `ls-files`, `branch` (no `-d`/`-D`), `rev-parse`, `remote -v`, `worktree list`, `for-each-ref`, `config --get`.
 - `allow_git_rw`: `add`, `commit`, `worktree add`.
 
@@ -183,6 +187,8 @@ Render to `.claude/settings.json` (the committed, team-shared file) using this m
 | `allow_runner` (exact command) | `"Bash(<command>)"` in `permissions.allow` |
 | `allow_runner` (prefix) | `"Bash(<runner> *)"` only when the user opts in (off by default — too broad) |
 | `allow_fs` | `"Bash(mkdir)"` and `"Bash(mkdir:*)"` in `permissions.allow` |
+| `allow_diag` | `"Bash(echo \"$EXIT:$?\")"` in `permissions.allow` |
+| `allow_utils` | one `"Bash(<name>:*)"` entry per utility in `permissions.allow` |
 | `allow_git_ro` | one entry per subcommand: `"Bash(git status)"`, `"Bash(git status:*)"`, etc. The `:*` suffix lets arguments through. |
 | `allow_git_rw` | `"Bash(git add:*)"`, `"Bash(git commit:*)"`, `"Bash(git worktree add:*)"` |
 
@@ -202,6 +208,12 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
 {
   "permissions": {
     "allow": [
+      "Bash(awk:*)",
+      "Bash(cat:*)",
+      "Bash(cut:*)",
+      "Bash(echo \"$EXIT:$?\")",
+      "Bash(fd:*)",
+      "Bash(find:*)",
       "Bash(git add:*)",
       "Bash(git blame:*)",
       "Bash(git branch)",
@@ -218,12 +230,20 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
       "Bash(git status:*)",
       "Bash(git worktree add:*)",
       "Bash(git worktree list)",
+      "Bash(head:*)",
       "Bash(just fmt)",
       "Bash(just gate)",
       "Bash(just lint)",
       "Bash(just test)",
       "Bash(mkdir)",
       "Bash(mkdir:*)",
+      "Bash(rg:*)",
+      "Bash(sed:*)",
+      "Bash(sort:*)",
+      "Bash(tail:*)",
+      "Bash(tr:*)",
+      "Bash(uniq:*)",
+      "Bash(wc:*)",
       "Glob",
       "Grep",
       "Read"
@@ -316,6 +336,21 @@ prefix_rule(
     pattern = ["mkdir"],
     decision = "allow",
     justification = "Workspace directory creation (e.g., .agentic/<slug>/). Codex's write sandbox confines this to the workspace.",
+)
+
+# --- diagnostic: stdout-only probes ------------------------------------
+prefix_rule(
+    pattern = ["echo", "$EXIT:$?"],
+    decision = "allow",
+    justification = "Post-command exit-code probe used by hook scripts.",
+)
+
+# --- shell utilities: read-mostly text processing ----------------------
+prefix_rule(
+    pattern = [["cat", "head", "tail", "sed", "awk", "wc",
+                "sort", "uniq", "cut", "tr", "find", "rg", "fd"]],
+    decision = "allow",
+    justification = "Read-mostly text utilities for ad-hoc exploration. Mutating variants (sed -i, find -delete) are not separately gated; the agent already has unrestricted workspace-edit access via Edit/Write tools.",
 )
 
 # --- git: read-only -----------------------------------------------------
@@ -413,7 +448,7 @@ Use these commands as the canonical entry points. The agent is preauthorised to 
 | lint-fix| `just lint-fix` | auto-applies safe fixes            |
 | gate    | `just gate`     | full pre-commit gate (lint + test) |
 
-Filesystem scope: agent reads/writes the working tree, including `.agentic/` (agentic-coding workspace) and `.worktrees/` (worktree provisioning). Committed `.env.example` / `.env.sample` / `.env.template` stay readable; live `.env` and the common `.env.local` / `.env.production` / etc. variants are denied. Other `.gitignore` entries are denied. The deny list contains sensitive-file reads only — destructive git (`push`, `reset`, `clean`, `rebase`, etc.) is not allowlisted but is not hard-blocked either; you'll be prompted to approve before it runs.
+Filesystem scope: agent reads/writes the working tree, including `.agentic/` (agentic-coding workspace) and `.worktrees/` (worktree provisioning). Committed `.env.example` / `.env.sample` / `.env.template` stay readable; live `.env` and the common `.env.local` / `.env.production` / etc. variants are denied. Other `.gitignore` entries are denied.
 <!-- /managed:setup-permissions -->
 ```
 
