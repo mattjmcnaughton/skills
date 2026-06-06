@@ -1,6 +1,6 @@
 ---
 name: ship-gate
-description: Fast pre-ship checklist on the current branch's diff against `main`. Runs seven mechanical checks (secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit-message hygiene, local gate) and offers auto-fixes. Use before `/create-pr` (pre-push) and before `/merge-pr` (pre-merge), or whenever the user says "ship gate", "before pushing", "before merging", "pre-push check", "pre-merge check", or "risk check before pr". Not a substitute for `/review` or `/review-pr`.
+description: Fast pre-ship checklist on the current branch's diff against `main`. Runs nine mechanical checks (secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit-message hygiene, local gate, new data sinks, unpinned dependencies) and offers auto-fixes. Use before `/create-pr` (pre-push) and before `/merge-pr` (pre-merge), or whenever the user says "ship gate", "before pushing", "before merging", "pre-push check", "pre-merge check", or "risk check before pr". Not a substitute for `/review` or `/review-pr`.
 ---
 
 `/ship-gate` is a downside-risk filter, not a code review. It runs a small set of cheap mechanical checks on the current branch's diff against `main` and reports anything that would be high-regret to ship. The intent is the kind of 60-second scan a human would do before pushing or merging.
@@ -111,7 +111,62 @@ Cite the short SHA for each flagged commit.
 
 Offer to rewrite via `git rebase -i main` — this is destructive (rewrites history), so require explicit per-commit confirmation in the auto-fix step.
 
-### 7. Local gate — WARN on missing, FAIL on failing
+### 7. New data sources (inputs and outputs) — WARN on hit
+
+List every data source this diff newly **reads from** or **writes to**. The point is to surface each one so the user can confirm it's intentional, named correctly, scoped to the right environment, and (for writes) covered by retention / backup / alerting policy.
+
+Scan added lines (`git diff main...HEAD | grep '^+'`) and bucket each finding as **IN** (read) or **OUT** (write) — a source that's read-then-written counts as both.
+
+- **Databases**: new `SELECT` / `INSERT` / `UPDATE` / `DELETE` / `UPSERT` / `MERGE`; new `CREATE TABLE`, `CREATE INDEX`, `ALTER TABLE`; migration files under `migrations/`, `alembic/`, `db/migrate/`, `prisma/migrations/`; new ORM model classes; new connection strings.
+- **Object storage**: `s3://`, `gs://`, `azure://` URIs; SDK calls — reads (`GetObject`, `download_file`, `Bucket(...).get`) and writes (`PutObject`, `upload_file`, `blob.upload_from_*`).
+- **Filesystem**: new read-mode (`open(..., 'r'|'rb')`, `fs.readFile`, `os.ReadFile`, `Path(...).read_text`) and write-mode opens (`open(..., 'w'|'a'|'wb'|'ab')`, `fs.writeFile`, `fs.appendFile`, `os.WriteFile`, `ioutil.WriteFile`, `Path(...).write_text`).
+- **Queues / streams / pubsub**: consumers (`subscribe`, `consume`, `ReceiveMessage`, `GetRecords`) and producers (`producer.send`, `producer.produce`, `publish(`, `SendMessage`, `PutRecord`, `topic.publish`).
+- **External HTTP**: any newly-called hostname — reads (`GET`) and writes (`POST` / `PUT` / `PATCH` / `DELETE`); new webhook URLs configured.
+- **Logs / telemetry sinks**: new logger configured to ship somewhere (Datadog, Sentry, Honeycomb, OTel exporter) or new metric/event names emitted to an external system.
+- **Config / env naming sources**: new env vars or config keys like `*_BUCKET`, `*_TABLE`, `*_TOPIC`, `*_QUEUE`, `*_DSN`, `*_WEBHOOK_URL`, `*_API_URL`, `DATABASE_URL_*`.
+
+Report each source with direction, `file:line`, and a one-line description:
+
+```
+OUT  src/audit.py:42       INSERT into users_audit (new table)
+OUT  src/uploader.py:88    s3://prod-events PutObject
+IN   src/loader.py:14      GET https://api.partner.example/v2/orders
+IN/OUT  config/db.yml:3    new postgres dsn ANALYTICS_DSN
+```
+
+Group by direction. Heuristic — prefer over-reporting; under-reporting is the failure mode that matters. Not auto-fixable.
+
+### 8. New dependencies — WARN, escalated nudge on unpinned
+
+List every new image, package, action, module, or system package this diff adds. For each, show the version constraint as-written and flag unpinned ones with a concrete pin suggestion. Floating versions are the most common cause of "it worked yesterday" regressions.
+
+Check newly-added or modified lines in:
+
+- **Dockerfiles / Containerfiles**: `FROM` lines. Flag `image` (no tag), `image:latest`, or floating major tags (e.g. `node:20`) and nudge to `image:tag@sha256:<digest>`.
+- **docker-compose / k8s manifests**: `image:` keys.
+- **Helm**: chart dependencies under `dependencies:` in `Chart.yaml`; flag missing `version:`.
+- **Python**: `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py`. Flag entries without `==` (or without `~=`/range constraints in `pyproject.toml`); `*` or no specifier is strongest nudge.
+- **JS/TS**: `package.json` `dependencies` / `devDependencies` / `peerDependencies`. Flag `*`, `latest`, or git refs without a SHA. `^` / `~` are common with lockfiles — list but don't push hard; verify a lockfile is committed.
+- **Go**: new `require` lines in `go.mod`.
+- **Rust**: `Cargo.toml` `[dependencies]`; flag `*` or no version.
+- **Ruby**: `Gemfile`; flag entries without a version constraint.
+- **GitHub Actions**: `uses:` lines in `.github/workflows/*.yml`. Nudge `@<branch>` and `@v<major>` to `@<sha>`, especially for third-party actions.
+- **Terraform**: `module` blocks (flag missing `version`), provider blocks (flag missing `version`).
+- **System packages**: `apt-get install foo`, `apk add foo`, `brew install foo` — flag missing `=version`.
+
+Report each with `file:line`, name, and constraint, marking pin status:
+
+```
+PINNED    Dockerfile:1               python:3.12.4-slim@sha256:abc...
+UNPINNED  Dockerfile:8               node:20            -> pin to node:20.11.1-alpine@sha256:<digest>
+UNPINNED  requirements.txt:4         httpx              -> pin to httpx==0.27.0
+LOOSE     package.json:14            react ^18.2.0      (lockfile commits the actual version — verify package-lock.json is tracked)
+UNPINNED  .github/workflows/ci.yml:22  actions/checkout@v4  -> pin to actions/checkout@<sha>
+```
+
+Group by manifest file. Not auto-fixable — resolving a pin requires looking up the current digest/version, which is a judgment call.
+
+### 9. Local gate — WARN on missing, FAIL on failing
 
 Detect a gate command by walking these in order and using the first match:
 
@@ -147,10 +202,16 @@ Branch: <current> vs main (<N> commits, <M> files changed)
 [5] Dead/duplicated     CLEAN
 [6] Commit hygiene      WARN    (1 hit)
     a1b2c3d  wip
-[7] Local gate          FAIL    (`just gate` exited 1)
+[7] Data sources        WARN    (2 hits)
+    OUT  src/audit.py:42       INSERT into users_audit (new table)
+    IN   src/loader.py:14      GET https://api.partner.example/v2/orders
+[8] Dependencies        WARN    (2 hits)
+    UNPINNED  Dockerfile:8                node:20  -> pin to node:20.11.1-alpine@sha256:<digest>
+    UNPINNED  .github/workflows/ci.yml:22 actions/checkout@v4  -> pin to @<sha>
+[9] Local gate          FAIL    (`just gate` exited 1)
     ... last 40 lines of output ...
 
-Summary: 2 FAIL, 3 WARN, 2 CLEAN
+Summary: 2 FAIL, 5 WARN, 2 CLEAN
 ```
 
 When everything is CLEAN, collapse the output:
@@ -158,10 +219,10 @@ When everything is CLEAN, collapse the output:
 ```
 Ship-gate report
 Branch: <current> vs main (<N> commits, <M> files changed)
-All seven checks CLEAN.
+All nine checks CLEAN.
 ```
 
-Don't render seven empty headers when there's nothing to say.
+Don't render nine empty headers when there's nothing to say.
 
 ## Follow-up: auto-fixes
 
@@ -178,6 +239,8 @@ After printing the report, if any finding is auto-fixable, ask one multi-select 
 | Secrets | Not auto-fixable — surface only, recommend revoking the credential and rewriting history with a real tool (`git filter-repo`, BFG); never offer a one-click history rewrite | — |
 | Commit messages | `git rebase -i main` with pre-written replacement subjects, per-commit confirmation | **Yes** |
 | Dead/duplicated | Not auto-fixable — surface only | — |
+| Data sources (in/out) | Not auto-fixable — surface only (user verifies naming, environment, ownership, retention) | — |
+| Unpinned dependencies | Not auto-fixable — surface only (resolving a pin requires looking up the current digest/version) | — |
 | Local gate failure | Not auto-fixable — re-run after the user fixes | — |
 
 Rules:
