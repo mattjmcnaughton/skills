@@ -41,6 +41,7 @@ Standalone helpers, not part of the coding loop.
 | Skill | Role |
 |---|---|
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review`. |
+| `/draft-api-client` | Interview the user about an API client and draft a plan covering a clean client, contract tests, a fake client, and an opt-in integration test. Hand off to `/build`. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
 | `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
@@ -62,6 +63,7 @@ skills/
 ├── create-pr/SKILL.md
 ├── create-worktree/SKILL.md
 ├── delete-worktree/SKILL.md
+├── draft-api-client/SKILL.md
 ├── fetch-context/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
