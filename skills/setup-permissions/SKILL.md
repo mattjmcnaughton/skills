@@ -7,7 +7,7 @@ description: Configure the current repo so an agent (Claude Code or Codex CLI) c
 
 The skill writes to the **committed** `.claude/settings.json`, not the gitignored `.claude/settings.local.json`. Rationale: the runner allowlist and secret-deny floor are project-shared concerns that should reach every contributor without re-running the skill, which matches how the Codex artifacts (`.codex/config.toml`, `.codex/rules/default.rules`) and `AGENTS.md` are already handled. A developer's personal overrides remain in `.claude/settings.local.json`, which the skill **reads** for conflict detection but never writes to.
 
-The skill is **re-runnable** and designed to be invoked repeatedly as the repo evolves. A second invocation against an unchanged repo produces zero diffs. When the managed model changes between runs (new runner targets land, the gitignore grows, the skill itself gains a new category like `allow_utils`), the managed regions are rewritten cleanly to reflect the new model — there is no manual "delete the old config and start fresh" step. Existing user-authored entries outside the managed regions are preserved; non-managed entries that snuck into the managed file are surfaced in the diff preview (see "Claude merge rules" below).
+The skill is **re-runnable**. The managed surface converges across runs: when the model changes (new runner targets land, the gitignore grows, the skill itself gains a new category like `allow_utils`), the managed regions are rewritten cleanly to reflect the new model — there is no manual "delete the old config and start fresh" step. Entries that live outside the managed surface — hand-authored team additions, or entries written by sibling skills like `/fewer-permission-prompts` — are **preserved** by default, not pruned. The skill is convergent on its managed floor, not byte-identical across arbitrary runs.
 
 ## Phases
 
@@ -18,7 +18,7 @@ The skill is split into four phases. Each one is independently invocable:
 - `/setup-permissions docs` — render and write the managed command-reference section into `AGENTS.md` (and `CLAUDE.md`).
 - `/setup-permissions audit` — check the detected runner for missing canonical targets (`lint`, `fmt`, `test`, `test-one`, `lint-fix`, `gate`) and print a plain-text gap report.
 
-With no arguments, `/setup-permissions` runs the default progression: **detect → permissions → docs → audit**, pausing after each phase to show the proposed diff and ask for confirmation. Users can decline an individual phase and continue; the next phase will see whatever state is on disk.
+With no arguments, `/setup-permissions` runs the default progression: **detect → permissions → docs → audit**, pausing after each phase to show the proposed diff and ask for confirmation. Users can decline an individual phase and continue; the next phase will see whatever state is on disk. After the permissions phase writes, the skill optionally augments the Claude allowlist by invoking `/fewer-permission-prompts` as a transcript-driven data source — see "Augmenting with observed prompts" under Phase 2.
 
 ## Phase 1: Detect
 
@@ -160,7 +160,7 @@ Fixed contents (independent of detection):
 - `allow_fs`: `mkdir` (any arguments). The agentic-coding loop creates workspace directories like `.agentic/<slug>/` and `.agentic/sources/<repo>/` without needing a prompt each time. The deny floor still applies to the file contents, and Codex's filesystem-write sandbox confines `mkdir` to the workspace; `Bash(mkdir:*)` in Claude is similarly scoped because the agent only operates inside the working tree.
 - `allow_diag`: `echo "$EXIT:$?"` (exact form). The post-command exit-code probe used by hook scripts and quick status checks. Read-only, no side effects beyond stdout.
 - `allow_utils`: read-mostly shell text utilities the agent uses in ad-hoc piping and exploration: `cat`, `head`, `tail`, `sed`, `awk`, `wc`, `sort`, `uniq`, `cut`, `tr`, `find`, `rg`, `fd`. Each is allowlisted as `<name>:*` so arguments pass through. Sensitive-file reads are still blocked by the deny floor. Mutating variants (`sed -i`, `find -delete`, `find -exec`) are not separately gated here because the agent already has unrestricted workspace-edit access through the `Edit` and `Write` tools — closing this gap would not raise the security posture, only the prompt rate.
-- `allow_git_ro`: `status`, `diff`, `log`, `show`, `blame`, `ls-files`, `branch` (no `-d`/`-D`), `rev-parse`, `remote -v`, `worktree list`, `for-each-ref`, `config --get`.
+- `allow_git_ro`: `status`, `diff`, `log`, `show`, `blame`, `ls-files`, `check-ignore`, `branch` (no `-d`/`-D`), `rev-parse`, `remote -v`, `worktree list`, `for-each-ref`, `config --get`.
 - `allow_git_rw`: `add`, `commit`, `worktree add`.
 
 Variable contents (depend on detection):
@@ -175,6 +175,7 @@ Variable contents (depend on detection):
 
   The floor is intentionally **enumerated** rather than using a broad `**/.env.*` glob, because the broad form would also match `.env.example`, `.env.sample`, and `.env.template` — committed documentation files the agent legitimately needs to read. The translation-step carve-outs (`.agentic`, `.worktrees`, `.env.example` and friends) also apply here: even a future floor entry must not deny those paths.
 - `allow_runner`: the union of the primary runner's *canonical-intent targets* (lint, fmt, test, test-one, lint-fix, gate) plus any explicit extra targets the user named. Targets that didn't match a canonical intent are **not** allowlisted by default — the agent should ask before running them. Each entry is the full command string (e.g., `just lint`, `pnpm run test`).
+- **Runner discovery**: when the primary runner is `just`, additionally allowlist `just --list` (and the `--unsorted` variant used by the detect phase) and `just --summary`. The agent re-runs this skill and other workflows that need to enumerate available recipes; gating discovery behind a prompt every time is friction with no security benefit, since these flags only read the `justfile`. No analogous entry is added for other runners — `make`, `pnpm`, `cargo`, etc. discover targets via tools (`jq`, `make -np`, `cargo metadata`) that are already covered by other allowlist categories.
 
 ### Claude renderer
 
@@ -217,6 +218,7 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
       "Bash(git add:*)",
       "Bash(git blame:*)",
       "Bash(git branch)",
+      "Bash(git check-ignore:*)",
       "Bash(git commit:*)",
       "Bash(git config --get:*)",
       "Bash(git diff:*)",
@@ -231,6 +233,9 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
       "Bash(git worktree add:*)",
       "Bash(git worktree list)",
       "Bash(head:*)",
+      "Bash(just --list)",
+      "Bash(just --list --unsorted)",
+      "Bash(just --summary)",
       "Bash(just fmt)",
       "Bash(just gate)",
       "Bash(just lint)",
@@ -290,7 +295,10 @@ The profile body:
 [permissions.agent-default]
 extends = ":workspace"
 
-[permissions.agent-default.filesystem]
+# Globs are scoped under `:workspace_roots` so they resolve relative to each
+# effective workspace root rather than as absolute paths. Per the Codex
+# reference, this is the special token that takes a nested subpath/glob table.
+[permissions.agent-default.filesystem.":workspace_roots"]
 # Generated from .gitignore; do not edit by hand.
 # Note: `.agentic/**` and `.worktrees/**` are intentionally NOT denied — the
 # agentic-coding loop reads and writes those locations. `.env.example`,
@@ -330,6 +338,11 @@ prefix_rule(
     decision = "allow",
     justification = "Local dev runner; safe to invoke unprompted.",
 )
+prefix_rule(
+    pattern = ["just", ["--list", "--summary"]],
+    decision = "allow",
+    justification = "Recipe discovery; read-only inspection of the justfile.",
+)
 
 # --- filesystem: safe mutations within the workspace -------------------
 prefix_rule(
@@ -356,8 +369,8 @@ prefix_rule(
 # --- git: read-only -----------------------------------------------------
 prefix_rule(
     pattern = ["git", ["status", "diff", "log", "show", "blame", "ls-files",
-                       "branch", "rev-parse", "remote", "worktree", "for-each-ref",
-                       "config"]],
+                       "check-ignore", "branch", "rev-parse", "remote",
+                       "worktree", "for-each-ref", "config"]],
     decision = "allow",
     justification = "Read-only git inspection.",
 )
@@ -416,14 +429,25 @@ Algorithm:
 
 1. Read the existing JSON if it exists. If parse fails, refuse to overwrite — show the file path and the parse error, ask the user to fix it manually.
 2. Compute the desired `allow`/`deny` arrays from the PermissionModel as **managed entries**.
-3. Treat any pre-existing entry that is **not** in the managed set as a stray user entry that ended up in the committed file. Surface these in the diff preview before overwriting and prompt the user once: keep them in the committed file (rare — only if they really are team-shared), or move them to `.claude/settings.local.json` (the default). The skill writes the managed-only content; if the user opted to keep an entry, the skill emits the union and notes it as a deviation from the canonical managed form.
+3. Compute the union of (managed entries) ∪ (existing entries not in the managed set). Non-managed entries are **preserved by default** — they may be hand-authored team additions, or written by a sibling skill like `/fewer-permission-prompts`. Surface them in the diff preview so the user can see what's being kept, but don't prune. The one exception: if a non-managed allow conflicts with the managed deny floor (e.g., `Read(./.env)` against the secret-deny set), flag it loudly so the user can decide — the audit phase also covers this case.
 4. Write with stable 2-space indentation, arrays sorted, trailing newline.
 
-Because the managed set is deterministic, a clean re-run against a managed-only file produces zero diff.
+The managed surface is deterministic; a re-run against a file that contains only managed entries produces zero diff. With augmentations from sibling skills or hand-authored allows present, the managed surface still converges but the file as a whole will differ — that's expected, not a bug.
 
 #### Scanning `.claude/settings.local.json`
 
 The skill reads the local file (if present) only to detect entries that contradict the managed deny set — e.g., a personal `Read(./.env)` allow that would override the managed sensitive-file deny. These appear in the audit phase under "Deny-floor overlap" with the file path so the developer can resolve it. The skill never modifies this file.
+
+### Augmenting with observed prompts
+
+After the baseline artifacts are written, optionally invoke `/fewer-permission-prompts` to fold in commands the user has been prompted on repeatedly. That sibling skill scans the session transcripts and appends frequently-seen read-only Bash and MCP calls directly to `.claude/settings.json`.
+
+Treat this as opt-in, not automatic. Ask the user after the permissions diff has been shown and accepted: "Also scan recent transcripts and append frequently-prompted commands? (runs `/fewer-permission-prompts`)". Skip it if the user has signaled they want a minimal, hand-curated allowlist; use it when the goal is to reduce friction across an active project. Exercise judgment about timing and framing — the principle is "offer this as a data source", not a rigid step in the progression.
+
+Two notes on scope:
+
+- `/fewer-permission-prompts` only writes to `.claude/settings.json`. The Codex artifacts (`.codex/config.toml`, `.codex/rules/default.rules`) are not touched by this augmentation. If the team also runs Codex against this repo and wants symmetric coverage, the appropriate fix is a follow-up `/setup-permissions` run after the runner's surface stabilises, or a hand-edit to `.codex/rules/team.rules`.
+- Entries `/fewer-permission-prompts` adds are preserved across subsequent `/setup-permissions` runs by the merge logic above — they look like "non-managed entries" and are kept by default.
 
 ## Phase 3: Docs
 
@@ -554,4 +578,4 @@ The skill always runs detection first, even when a later phase is requested in i
 - Plain text only. No emojis in skill output, in the produced configs, or in commit messages.
 - Never overwrite a config file blindly. Merge into existing structure; surface conflicts.
 - Ask before guessing. Exotic runners, ambiguous gitignore patterns, and conflicting existing entries all warrant a prompt.
-- Re-runnability is a hard requirement. Every render must be deterministic given the same DetectionResult.
+- Re-runnability matters, but byte-identical output isn't required. The managed surface must converge across runs given the same DetectionResult; entries added by sibling skills (`/fewer-permission-prompts`, future siblings) or by hand are preserved, not pruned. Use judgment about exactly when and how to invoke optional integrations like `/fewer-permission-prompts` — the SKILL describes the integration point, not a rigid sequence.
