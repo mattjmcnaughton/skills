@@ -159,7 +159,7 @@ Fixed contents (independent of detection):
 - `allow_reads`: `Read`, `Glob`, `Grep` on the entire tree. The deny globs do the narrowing.
 - `allow_fs`: `mkdir` (any arguments). The agentic-coding loop creates workspace directories like `.agentic/<slug>/` and `.agentic/sources/<repo>/` without needing a prompt each time. The deny floor still applies to the file contents, and Codex's filesystem-write sandbox confines `mkdir` to the workspace; `Bash(mkdir:*)` in Claude is similarly scoped because the agent only operates inside the working tree.
 - `allow_diag`: `echo "$EXIT:$?"` (exact form). The post-command exit-code probe used by hook scripts and quick status checks. Read-only, no side effects beyond stdout.
-- `allow_utils`: read-mostly shell text utilities the agent uses in ad-hoc piping and exploration: `cat`, `head`, `tail`, `sed`, `awk`, `wc`, `sort`, `uniq`, `cut`, `tr`, `find`, `rg`, `fd`. Each is allowlisted as `<name>:*` so arguments pass through. Sensitive-file reads are still blocked by the deny floor. Mutating variants (`sed -i`, `find -delete`, `find -exec`) are not separately gated here because the agent already has unrestricted workspace-edit access through the `Edit` and `Write` tools — closing this gap would not raise the security posture, only the prompt rate.
+- `allow_utils`: read-mostly shell text utilities the agent uses in ad-hoc piping and exploration: `cat`, `head`, `tail`, `sed`, `awk`, `wc`, `sort`, `uniq`, `cut`, `tr`, `find`, `rg`, `fd`, plus the compound `xargs cat` (fan-out reads from a file list). Each is allowlisted as `<entry>:*` so arguments pass through. The compound `xargs cat` is allowlisted narrowly rather than bare `xargs` because `xargs` runs an arbitrary subcommand — `xargs rm` and `xargs sh -c ...` should still prompt. Sensitive-file reads are still blocked by the deny floor. Mutating variants (`sed -i`, `find -delete`, `find -exec`) are not separately gated here because the agent already has unrestricted workspace-edit access through the `Edit` and `Write` tools — closing this gap would not raise the security posture, only the prompt rate.
 - `allow_git_ro`: `status`, `diff`, `log`, `show`, `blame`, `ls-files`, `check-ignore`, `branch` (no `-d`/`-D`), `rev-parse`, `remote -v`, `worktree list`, `for-each-ref`, `config --get`.
 - `allow_git_rw`: `add`, `commit`, `worktree add`.
 
@@ -189,7 +189,7 @@ Render to `.claude/settings.json` (the committed, team-shared file) using this m
 | `allow_runner` (prefix) | `"Bash(<runner> *)"` only when the user opts in (off by default — too broad) |
 | `allow_fs` | `"Bash(mkdir)"` and `"Bash(mkdir:*)"` in `permissions.allow` |
 | `allow_diag` | `"Bash(echo \"$EXIT:$?\")"` in `permissions.allow` |
-| `allow_utils` | one `"Bash(<name>:*)"` entry per utility in `permissions.allow` |
+| `allow_utils` | one `"Bash(<entry>:*)"` entry per utility in `permissions.allow`; multi-token entries like `xargs cat` render as `"Bash(xargs cat:*)"` |
 | `allow_git_ro` | one entry per subcommand: `"Bash(git status)"`, `"Bash(git status:*)"`, etc. The `:*` suffix lets arguments through. |
 | `allow_git_rw` | `"Bash(git add:*)"`, `"Bash(git commit:*)"`, `"Bash(git worktree add:*)"` |
 
@@ -249,6 +249,7 @@ and a detected `just` runner with targets `lint`, `fmt`, `test`, `gate`, the ren
       "Bash(tr:*)",
       "Bash(uniq:*)",
       "Bash(wc:*)",
+      "Bash(xargs cat:*)",
       "Glob",
       "Grep",
       "Read"
@@ -364,6 +365,11 @@ prefix_rule(
                 "sort", "uniq", "cut", "tr", "find", "rg", "fd"]],
     decision = "allow",
     justification = "Read-mostly text utilities for ad-hoc exploration. Mutating variants (sed -i, find -delete) are not separately gated; the agent already has unrestricted workspace-edit access via Edit/Write tools.",
+)
+prefix_rule(
+    pattern = ["xargs", "cat"],
+    decision = "allow",
+    justification = "Fan-out reads over a file list. Bare `xargs` is intentionally not allowlisted because it runs an arbitrary subcommand (xargs rm, xargs sh -c ...).",
 )
 
 # --- git: read-only -----------------------------------------------------
