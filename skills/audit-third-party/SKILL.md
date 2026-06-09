@@ -1,6 +1,18 @@
 ---
 name: audit-third-party
-description: Audit a third-party codebase (cloned locally via `/fetch-context`) for data-privacy and security risk before adopting or deploying it. Interviews the user about intended use and deployment context, then scans the source for outbound network calls, telemetry, data persistence, auth/secrets defaults, and dependency-supply-chain risk. Produces a terminal report with a headline verdict on data-exfiltration mechanisms, finding-driven recommendations, and a maximum-security configuration baseline for deployment. Use before adopting a self-hosted service, OSS framework, or vendor SDK — examples like `coder/coder`, `mastra-ai/mastra`, or any new tool the team plans to deploy. Triggers: "audit this repo", "audit this third-party", "is this safe to self-host", "what does this thing send out", "audit before we adopt X".
+description: >-
+  Audit a third-party codebase (cloned locally via `/fetch-context`) for
+  data-privacy and security risk before adopting or deploying it. Interviews
+  the user about intended use and deployment context, then scans the source
+  for outbound network calls, telemetry, data persistence, auth/secrets
+  defaults, and dependency-supply-chain risk. Produces a terminal report with
+  a headline verdict on data-exfiltration mechanisms, finding-driven
+  recommendations, and a maximum-security configuration baseline for
+  deployment. Use before adopting a self-hosted service, OSS framework, or
+  vendor SDK — examples like `coder/coder`, `mastra-ai/mastra`, or any new
+  tool the team plans to deploy. Triggers include "audit this repo", "audit
+  this third-party", "is this safe to self-host", "what does this thing send
+  out", "audit before we adopt X".
 ---
 
 `/audit-third-party` answers three questions about a third-party codebase you're considering adopting:
