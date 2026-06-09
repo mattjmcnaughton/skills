@@ -42,10 +42,14 @@ Standalone helpers, not part of the coding loop.
 |---|---|
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review`. |
 | `/draft-api-client` | Interview the user about an API client and draft a plan covering a clean client, contract tests, a fake client, and an opt-in integration test. Hand off to `/build`. |
+| `/draft-job-map` | Interview the user about a broad space and produce a concise, precise Jobs-to-Be-Done map: actors, jobs, circumstances, competing alternatives, success criteria. Pairs with `/hire-job-map`. |
+| `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
+| `/create-diagram` | Author and render diagrams in Mermaid, Graphviz, Excalidraw, or TikZ. Writes source plus a rendered SVG via an external Kroki (`KROKI_HOST_URL`) or the bundled docker-compose stack. |
 | `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
+| `/add-permissions` | Add a single focused permission grant to the repo's agent allowlist, written symmetrically for Claude and Codex. Use after a one-off prompt instead of rerunning `/setup-permissions`. |
 | `/ship-gate` | Fast pre-ship checklist on the branch diff: secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit hygiene, local gate. Optional manual checkpoint before `/create-pr` and `/merge-pr`. |
 
 ## Conventions
@@ -59,14 +63,18 @@ Standalone helpers, not part of the coding loop.
 
 ```
 skills/
+├── add-permissions/SKILL.md
 ├── audit-third-party/SKILL.md
 ├── build/SKILL.md
 ├── create-commit/SKILL.md
+├── create-diagram/SKILL.md
 ├── create-pr/SKILL.md
 ├── create-worktree/SKILL.md
 ├── delete-worktree/SKILL.md
 ├── draft-api-client/SKILL.md
+├── draft-job-map/SKILL.md
 ├── fetch-context/SKILL.md
+├── hire-job-map/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
 │   ├── SKILL.md
