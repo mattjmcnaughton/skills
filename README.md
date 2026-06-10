@@ -46,6 +46,11 @@ Standalone helpers, not part of the coding loop.
 | `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
+| `/audit-data-contracts` | Audit a host repo (dbt, Python pipelines, Spark, SQL) for implicit data contracts. Surfaces datasets without owners, schemas without nullability, columns that look like enums but aren't pinned, and pipelines without freshness SLAs. Each finding routes to a suggested `/draft-data-contract` invocation. |
+| `/draft-data-contract` | Interview the user about a dataset or pipeline boundary and produce an Open Data Contract Standard (ODCS) YAML contract covering schema, semantics, quality, freshness SLA, and ownership. Supports an optional medallion `layer: bronze\|silver\|gold` field. Pairs with `/enforce-data-contract` and `/synth-from-contract`. |
+| `/enforce-data-contract` | Take an ODCS contract and generate validation code in the host stack: dbt model contracts plus tests, Great Expectations suites, Soda checks, Pandera schemas, or Pydantic models. Honors layer-strictness defaults and surfaces ODCS fields the target tool can't express as warnings. |
+| `/synth-from-contract` | Take an ODCS contract and generate realistic, constraint-respecting synthetic data: Parquet, CSV, JSON Lines, a DuckDB table, or a Faker factory class. Deterministic by default. Tier-2 (constraint-respecting) only; distribution-learning (SDV) is out of scope. |
+| `/data-contract-core` | Reference skill (not action). Defines the shared ODCS profile the four data-contract skills above assume: required fields, optional medallion `layer` strictness defaults, `quality` block shape, and a worked `silver.transactions` example. Read when authoring data-contract skills or answering profile questions. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
 | `/create-diagram` | Author and render diagrams in Mermaid, Graphviz, Excalidraw, or TikZ. Writes source plus a rendered SVG via an external Kroki (`KROKI_HOST_URL`) or the bundled docker-compose stack. |
 | `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
@@ -66,15 +71,19 @@ Standalone helpers, not part of the coding loop.
 ```
 skills/
 ├── add-permissions/SKILL.md
+├── audit-data-contracts/SKILL.md
 ├── audit-third-party/SKILL.md
 ├── build/SKILL.md
 ├── create-commit/SKILL.md
 ├── create-diagram/SKILL.md
 ├── create-pr/SKILL.md
 ├── create-worktree/SKILL.md
+├── data-contract-core/SKILL.md
 ├── delete-worktree/SKILL.md
 ├── draft-api-client/SKILL.md
+├── draft-data-contract/SKILL.md
 ├── draft-job-map/SKILL.md
+├── enforce-data-contract/SKILL.md
 ├── fetch-context/SKILL.md
 ├── hire-job-map/SKILL.md
 ├── merge-pr/SKILL.md
@@ -90,6 +99,8 @@ skills/
 ├── update-docs/SKILL.md
 ├── workflow-audit/SKILL.md
 └── workflow-catalog/SKILL.md
+├── synth-from-contract/SKILL.md
+└── update-docs/SKILL.md
 README.md
 LICENSE
 ```
