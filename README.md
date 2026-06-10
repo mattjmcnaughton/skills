@@ -51,6 +51,8 @@ Standalone helpers, not part of the coding loop.
 | `/setup-permissions` | Configure `.claude/settings.local.json`, `.codex/config.toml`, `.codex/rules/default.rules`, and AGENTS.md so an agent can run lint/fmt/test/gate without prompts. Run on a new repo. |
 | `/add-permissions` | Add a single focused permission grant to the repo's agent allowlist, written symmetrically for Claude and Codex. Use after a one-off prompt instead of rerunning `/setup-permissions`. |
 | `/ship-gate` | Fast pre-ship checklist on the branch diff: secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit hygiene, local gate. Optional manual checkpoint before `/create-pr` and `/merge-pr`. |
+| `/workflow-catalog` | Probe a codebase for user-facing workflows (routes, pages, CLI subcommands, service endpoints), interview to confirm, and write `docs/workflows.md` with stable `WF-<DOMAIN>-NNN` IDs. Pairs with `/workflow-audit`. |
+| `/workflow-audit` | Read `docs/workflows.md` and report unit/integration/e2e test coverage per workflow by linking tests via explicit pins, ID references, name matches, page URLs, or import heuristics. Writes `docs/workflow-coverage.md`. |
 
 ## Conventions
 
@@ -85,7 +87,9 @@ skills/
 ├── review-pr/SKILL.md
 ├── setup-permissions/SKILL.md
 ├── ship-gate/SKILL.md
-└── update-docs/SKILL.md
+├── update-docs/SKILL.md
+├── workflow-audit/SKILL.md
+└── workflow-catalog/SKILL.md
 README.md
 LICENSE
 ```
