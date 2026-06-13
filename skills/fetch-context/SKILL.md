@@ -1,198 +1,142 @@
 ---
 name: fetch-context
 description: >-
-  Pull external context into the current repo: up-to-date library documentation
-  via `context7-cli`, full upstream source code via shallow `git clone` into
-  `.agentic/sources/<repo>/`, or arbitrary web pages cleaned to markdown via
-  `https://r.jina.ai/<URL>`. Use whenever the user asks about a specific
-  library, framework, SDK, or CLI tool — even well-known ones — since training
-  data may not reflect recent API changes. Also use when the user wants to read,
-  grep, or reference an upstream project's source locally, or when they hand you
-  a URL to read.
+  Pull external context into the current repo via the `fetch-context` CLI:
+  shallow-clone an upstream repo (or whole GitHub org / GitLab group) into
+  `.agentic/sources/repos/<host>/<owner>/<repo>/` so Read/Grep can use it
+  directly, or fetch an arbitrary web page as clean markdown into
+  `.agentic/sources/urls/<host>/<path>.md`. Use when the user wants to read,
+  grep, or reference an upstream project's source locally, or when they hand
+  you a URL (blog post, RFC, changelog, GitHub issue, vendor page) to read.
 
-  Always use for: API syntax questions, configuration options, version migration
-  issues, "how do I" questions mentioning a library name, debugging
-  library-specific behavior, any request to "go read the source of X" or
-  "clone X so we can look at it", and any request to read/summarize/extract from
-  a specific URL.
+  Triggers include: "go read the source of X", "clone X so we can look at it",
+  "what does X do under the hood", "read/summarize/extract from this URL".
 ---
 
 # fetch-context
 
-Three ways to bring external context into the working directory:
+Two ways to bring external context into the working directory, both driven by the `fetch-context` CLI:
 
-1. **Docs** — query Context7 via `context7-cli` for current documentation and code snippets.
-2. **Source** — shallow-clone an upstream git repo into `.agentic/sources/<repo>/` so Read/Grep can use it directly.
-3. **URL** — fetch a specific web page through `https://r.jina.ai/<URL>` to get a clean markdown rendering.
+1. **Source** — clone an upstream git repo (or every repo in an org/group) into `.agentic/sources/repos/<host>/<owner>/<repo>/`.
+2. **URL** — fetch a specific web page as clean markdown into `.agentic/sources/urls/<host>/<path>.md`.
 
-Use docs first for API questions. Reach for a source clone when docs aren't enough — when the user wants to read implementation details, grep across the codebase, or trace behavior the docs don't cover. Use the URL path when the user gives you (or points you at) a specific page — blog post, RFC, changelog, GitHub issue, vendor docs page — that isn't in Context7 and doesn't warrant a clone.
-
----
-
-## Docs: `context7-cli`
-
-Two-step workflow: search for a library ID, then fetch docs by ID. Always do both steps — never skip the search.
-
-```bash
-context7-cli search <query>          # list matching libraries
-context7-cli get-docs <id>           # fetch docs for a known ID (e.g. /fastapi/fastapi)
-```
-
-The CLI also has a `lucky` subcommand that auto-picks the top search hit. **Do not use it.** Always inspect search results and pick deliberately — `lucky` hides the candidates, so you can't tell when the top hit is wrong.
-
-IMPORTANT: Do not run these commands more than 3 times per question. If you cannot find what you need after 3 attempts, use the best result you have.
-
-### Step 1: search
-
-```bash
-context7-cli search "fastapi dependency injection"
-context7-cli search "nextjs app router middleware" --limit 5
-context7-cli search "react" --id-only --limit 3
-```
-
-Options:
-
-| Flag | Purpose |
-|---|---|
-| `--sort-by <field>` | Sort results (default: `stars`) |
-| `--limit <n>` | Cap result count |
-| `--id-only` | Print only library IDs, one per line — useful for piping |
-
-Use a descriptive query that reflects the user's intent, not just the library name. Better disambiguation when multiple libraries share a name. Never include secrets (API keys, credentials, proprietary code) in the query.
-
-### Selecting a result
-
-Each result lists name, description, code-snippet count, source reputation (High/Medium/Low/Unknown), benchmark score (max 100), and any indexed versions.
-
-Pick by:
-1. Name match to what the user named.
-2. Description relevance to the user's question.
-3. Higher code-snippet count and benchmark score.
-4. Higher source reputation.
-
-If multiple matches look equally plausible, acknowledge and proceed with the best; don't silently guess. If nothing fits, say so and suggest a refined query rather than forcing a bad ID.
-
-### Step 2: get-docs
-
-```bash
-context7-cli get-docs /fastapi/fastapi
-context7-cli get-docs /vercel/next.js
-```
-
-Library IDs are `/<org>/<project>` and require the leading slash. If the user pins a version and the search output exposed it, use `/<org>/<project>/<version>`.
-
-### Writing good queries
-
-The query directly affects result quality.
-
-| Quality | Example |
-|---|---|
-| Good | `"How to set up JWT authentication in Express.js"` |
-| Good | `"React useEffect cleanup with async operations"` |
-| Bad | `"auth"` |
-| Bad | `"hooks"` |
-
-Use the user's full question as the query when possible. Vague one-word queries return generic results.
-
-### When docs aren't enough
-
-If the docs don't answer the question (missing detail, behavior not documented, you need to read the implementation), fall through to a source clone — see below.
+Reach for source when the user wants to read implementation details, grep across an upstream codebase, or trace behavior. Reach for URL when the user gives you (or points you at) a specific page — blog post, RFC, changelog, GitHub issue, vendor docs page — that doesn't warrant a full clone.
 
 ---
 
-## Source: shallow clone into `.agentic/sources/`
+## Preflight: is `fetch-context` installed?
 
-When the user wants to read or grep upstream code locally, clone it into `.agentic/sources/<repo>/` at the repo root. `.agentic/` is already gitignored across this workflow, and `sources/` is repo-scoped so the same clone is reusable across tasks rather than re-cloned per `.agentic/<slug>/`.
-
-### Process
-
-1. **Resolve the repo URL.** If the user gave a URL, use it. If they gave a name, ask which upstream they mean before cloning — don't guess. For Context7 results, the library ID often maps to `https://github.com/<org>/<project>` but confirm if it's not obvious.
-
-2. **Derive the destination.** `.agentic/sources/<repo>/` where `<repo>` is the repo's basename (e.g. `fastapi`, `next.js`). Use the repo root of the current working directory — `git rev-parse --show-toplevel`.
-
-3. **Check for an existing clone.**
-   ```bash
-   if [ -d .agentic/sources/<repo>/.git ]; then
-     # Already cloned — fetch latest instead of re-cloning.
-     git -C .agentic/sources/<repo> fetch --depth=1 origin
-   fi
-   ```
-   If it exists, offer to `git fetch` rather than re-cloning. Only delete and re-clone with explicit user confirmation.
-
-4. **Clone shallow by default.**
-   ```bash
-   mkdir -p .agentic/sources
-   git clone --depth=1 <url> .agentic/sources/<repo>
-   ```
-   Shallow keeps disk and network cheap. If the user needs blame/log/history, deepen on request:
-   ```bash
-   git -C .agentic/sources/<repo> fetch --unshallow
-   ```
-
-5. **Report the path.** Tell the user the absolute and relative path so Read/Grep calls are easy:
-   ```
-   Cloned: .agentic/sources/fastapi/
-   ```
-
-### Refs, branches, tags
-
-Default to the repo's default branch. If the user names a ref, pass it:
+Assume the CLI is installed and call it directly. Only check if a call fails with "command not found":
 
 ```bash
-git clone --depth=1 --branch <ref> <url> .agentic/sources/<repo>
+command -v fetch-context >/dev/null
 ```
 
-`<ref>` can be a branch or a tag. For arbitrary SHAs, clone then `git -C ... fetch --depth=1 origin <sha> && git -C ... checkout <sha>`.
+If the binary is missing:
 
-### Reading the clone
-
-After cloning, use Read/Grep/Glob directly on `.agentic/sources/<repo>/`. Treat it like any other code under the repo root — but never edit or commit from it, and don't `cd` into it (it's a separate git repo and would shadow the host repo's git state).
+1. Tell the user `fetch-context` isn't installed and point them at the install instructions in the upstream README: <https://github.com/mattjmcnaughton/fetch-context#install>.
+2. Then fall back to the raw commands documented in the **Fallback** subsection of each path so the immediate task isn't blocked. Be explicit when you do this — the fallback layout differs from the CLI layout, and the user should know they're on a degraded path.
 
 ---
 
-## URL: `https://r.jina.ai/`
+## Source: `fetch-context repo`
 
-When the user hands you a URL (or names a specific page), fetch it via Jina's reader proxy: prepend `https://r.jina.ai/` to the original URL. The proxy fetches the page, strips boilerplate, and returns clean markdown — much easier to read than raw HTML.
+Shallow-clone an upstream source into `.agentic/sources/repos/<host>/<owner>/<repo>/`.
 
-### Process
+```bash
+fetch-context repo github.com/redis/redis
+fetch-context repo github.com/foo/bar gitlab.com/acme/lib
+```
 
-1. **Take the original URL as-is** — keep the full scheme, host, path, and query string. Do not URL-encode it; r.jina.ai expects the URL appended literally.
+- Accepts a host-qualified path (`github.com/foo/bar`) or a full clone URL.
+- Shallow by default (`--depth=1`). `--depth N` controls history depth; `--depth 0` fetches full history. `--branch <name>` clones and tracks the named branch.
+- Re-running the command **fetches and hard-resets the clone to the remote's latest** — any local edits inside the clone are wiped. Don't edit, don't commit from it, and don't `cd` into it (separate git repo; would shadow the host repo's git state).
+- The tree is gitignored automatically by the CLI.
 
-   ```
-   https://r.jina.ai/https://example.com/some/page?x=1
-   ```
+After cloning, report both paths so Read/Grep is easy:
 
-2. **Fetch via WebFetch** with the wrapped URL. Pass the user's question as the prompt so the response is filtered to what they actually want:
+```
+Cloned: .agentic/sources/repos/github.com/redis/redis/
+        (absolute: <repo-root>/.agentic/sources/repos/github.com/redis/redis/)
+```
 
-   ```
-   WebFetch(url="https://r.jina.ai/https://example.com/some/page", prompt="<user's question>")
-   ```
+### Whole orgs / groups: `fetch-context group`
 
-   If WebFetch isn't a fit (e.g. you need the raw body), `curl -sSL https://r.jina.ai/<URL>` works too.
+```bash
+fetch-context group github.com/my-org
+fetch-context group gitlab.com/acme/platform
+```
 
-3. **Report the source URL** in your response so the user can verify what you read.
+- GitHub orgs are flat: every repo in the org is cloned.
+- GitLab groups are recursive: subgroups are walked and their path is preserved (`gitlab.com/acme/platform/team/utils` → `sources/repos/gitlab.com/acme/platform/team/utils/`).
+- Enumeration hits the host's REST API and almost always needs a token: `GITHUB_TOKEN` or `GITLAB_TOKEN` in the environment. Public single-repo clones via `repo` need no token.
+- Clones run concurrently (default 4). Use sparingly — orgs can be large.
 
-### When to use it
+### Fallback (no `fetch-context` binary)
 
-- User pastes a URL and asks you to read, summarize, or extract from it.
-- User references a specific page ("the changelog for X", "that RFC", "the GitHub issue we linked yesterday") and you have the URL.
-- A Context7 doc or source-code search points you at a specific external page worth reading in full.
+Flat layout, no host/owner prefix:
 
-### When NOT to use it
+```bash
+mkdir -p .agentic/sources
+if [ -d .agentic/sources/<repo>/.git ]; then
+  git -C .agentic/sources/<repo> fetch --depth=1 origin
+else
+  git clone --depth=1 <url> .agentic/sources/<repo>
+fi
+```
 
-- For library API questions, prefer `context7-cli` — it's curated and faster.
-- For exploring a project's code, prefer a source clone — grep/read works locally.
-- Never wrap a URL that contains secrets in the path or query string (tokens, signed URLs, session IDs) — it gets sent to a third-party proxy. Strip or refuse.
-- Don't use it for URLs you fabricated. Only fetch URLs the user provided or that you obtained from a trusted source (Context7 results, the user's repo, etc.).
+- Destination is `.agentic/sources/<repo>/` (just the basename) — **different from the CLI's `repos/<host>/<owner>/<repo>/` layout**. Call this out when you report the path.
+- Pin a ref with `--branch <ref>` on the initial clone. Deepen later with `git -C .agentic/sources/<repo> fetch --unshallow` if blame/log is needed.
+- Ensure `.agentic/` is gitignored in the host repo (the CLI does this for you; here you don't get it for free).
+
+---
+
+## URL: `fetch-context url`
+
+Fetch a page (through `https://r.jina.ai/` under the hood, which strips boilerplate and returns clean markdown) and write it to `.agentic/sources/urls/<host>/<path>.md`.
+
+```bash
+fetch-context url https://example.com/blog/some-post
+```
+
+- The URL is wrapped literally; the page is sent to a third-party proxy. **Never pass a URL containing secrets** (tokens, signed URLs, session IDs). Strip or refuse.
+- Re-fetching overwrites the existing markdown.
+- A root URL with no path is written to `<host>/index.md`.
+- Only fetch URLs the user provided or that you obtained from a trusted source (their repo, an upstream clone). Don't fetch URLs you fabricated.
+
+After fetching, point Read at the resulting markdown file.
+
+### Fallback (no `fetch-context` binary)
+
+Use `WebFetch` against the same proxy and pass the user's question as the prompt so the response is filtered to what they actually want:
+
+```
+WebFetch(url="https://r.jina.ai/https://example.com/some/page", prompt="<user's question>")
+```
+
+If `WebFetch` isn't a fit (you need the raw body), `curl -sSL https://r.jina.ai/<URL>` works. Same secrets rule applies. The result is not written to disk in this path — quote or summarize inline.
+
+---
+
+## Profiles (saved bundles)
+
+For repeat context sets, `fetch-context` supports named profiles defined in `~/.config/fetch-context/config.yaml`:
+
+```bash
+fetch-context load <profile>    # materialize a named bundle of repos/groups/urls
+fetch-context list              # show defined profiles and what's on disk
+fetch-context clean             # remove materialized content under the resolved target
+fetch-context edit              # open the config in $VISUAL/$EDITOR/vi
+```
+
+Use `load` when the user references a saved bundle by name. Config-file schema lives in the upstream README — point the user at `fetch-context edit` rather than hand-authoring YAML for them.
 
 ---
 
 ## Guidelines
 
-- **Prefer docs over source for API questions** — docs are curated and faster to scan. Clone only when you need implementation detail.
-- **Don't rely on training data for API details** — signatures, options, and version-specific behavior drift. Run `context7-cli` even for libraries you "know".
-- **Surface quota errors honestly.** If `context7-cli` fails with a quota or auth error, tell the user, then answer from training knowledge with an explicit caveat that it may be outdated. Never silently fall back.
-- **Library IDs need the leading slash** — `/facebook/react`, not `facebook/react`.
-- **Never put secrets in queries or URLs** — `context7-cli` queries and `r.jina.ai`-wrapped URLs are both sent to third-party services.
-- **`.agentic/sources/` is gitignored** — clones won't pollute the host repo. Don't `git add` anything inside it.
-- **Don't `cd` into a clone** — operate on it via absolute or repo-root-relative paths so your shell stays in the host repo.
+- **Don't rely on training data for API details** — signatures, options, and version-specific behavior drift. Clone the source if the user needs to verify behavior.
+- **Never put secrets in URLs** — `r.jina.ai`-wrapped URLs are sent to a third-party proxy.
+- **`.agentic/sources/` is gitignored automatically by the CLI.** On the fallback path, make sure `.agentic/` is in the host repo's `.gitignore` so clones don't leak into history.
+- **Don't `cd` into a clone** — it's a separate git repo and would shadow the host repo's git state. Operate via absolute or repo-root-relative paths.
+- **Don't edit or commit from a clone.** The CLI's refresh hard-resets to remote latest and will wipe local edits by design.
