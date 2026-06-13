@@ -58,6 +58,21 @@ If the host uses medallion architecture, set `info.layer: bronze | silver | gold
 
 `info.layer` is optional. Contracts without it behave like silver for default purposes but skip the layer-strictness errors.
 
+### Enforcement boundaries (write and read)
+
+A contract should be enforced on **both sides** of every boundary it crosses: the producer validates on write, and the next consumer validates on read. Single-sided enforcement is the common failure mode — writers trust their own code, readers trust the upstream, and the bad row lands silently in between.
+
+Concretely, in a medallion flow:
+
+- **extract → bronze** — the extract job validates the contract when **writing** bronze.
+- **bronze → silver** — the transform validates the bronze contract when **reading** bronze, and validates the silver contract when **writing** silver.
+- **silver → gold** — the transform validates the silver contract when **reading** silver, and validates the gold contract when **writing** gold.
+- **gold → consumer** — the consumer validates the gold contract when **reading**.
+
+This is a defense-in-depth pattern, not a redundancy bug: the write-side validator catches producer drift before it lands; the read-side validator catches drift the producer's validator missed (different runtime, different library version, different table partition). The two together also localize blame — a failure on write blames the producer; a failure on read blames either the storage layer or the contract's freshness assumption.
+
+`/enforce-data-contract` defaults to emitting validators for both sides of each boundary the user names. The user can opt out per boundary, but the skill warns when only one side is wired.
+
 ### `info.pii` and `schema.fields[].pii`
 
 `true` / `false` flags. Drive PII-aware redaction in `/enforce-data-contract` outputs and PII-aware fake values in `/synth-from-contract`.

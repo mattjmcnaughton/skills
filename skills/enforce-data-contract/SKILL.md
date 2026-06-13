@@ -63,11 +63,26 @@ Cite the detection back to the user in one short paragraph before the interview.
 
 Cover, in order:
 
+### Enforcement boundaries (write and read)
+
+Before asking which validators to emit, establish *where* the contract is enforced. The default, per the `data-contract-core` profile, is to enforce on both sides of every boundary the contract crosses: the producer validates **on write**, the next consumer validates **on read**.
+
+Ask the user:
+
+- Which job(s) **write** data conforming to this contract? (e.g., the extract job for a bronze contract; the bronze→silver transform for a silver contract.) A validator goes there.
+- Which job(s) **read** data conforming to this contract? (e.g., the bronze→silver transform reads the bronze contract; the silver→gold transform reads the silver contract; downstream consumers read the gold contract.) A validator goes there too.
+
+For each boundary the user names, the skill will plan a validator. The user may opt out of a side per boundary (e.g., "the extract job has its own typed schema; skip write-side bronze"), but the skill should warn that single-sided enforcement is fragile and the reason for opting out should be recorded as a comment in the emitted file.
+
+If the user is unsure which jobs touch the contract, ask them to enumerate the boundaries first; the rest of the interview is shaped by the answer.
+
 ### Which validator(s) to emit
 
-Ask explicitly: which of {dbt model contract, dbt-expectations/dbt-utils tests, Great Expectations suite, Soda checks, Pandera schema, Pydantic model} should be emitted? Multi-select is fine; many projects want both a dbt-layer enforcement and a Python-layer enforcement, because they run at different points in the pipeline.
+For each boundary identified above (write side and read side), ask which of {dbt model contract, dbt-expectations/dbt-utils tests, Great Expectations suite, Soda checks, Pandera schema, Pydantic model} should be emitted. The write-side and read-side validators often differ in tool: e.g., the producer is a Python extract job (Pandera on write) and the consumer is a dbt transform (dbt model contract + tests on read). Match the tool to where the job actually runs.
 
-Default the answer to whatever host-stack detection found, but always confirm.
+Multi-select per boundary is fine; many projects want both a dbt-layer enforcement and a Python-layer enforcement at the same boundary, because they run at different points in the pipeline.
+
+Default the answer to whatever host-stack detection found for the job at that boundary, but always confirm.
 
 ### Where outputs land
 
@@ -289,6 +304,7 @@ Emit Pydantic v2 syntax by default. Switch to v1 (`Config` inner class, `Field(.
 ## Guidelines
 
 - **The contract is the source of truth.** Never edit it from this skill, and never silently drop ODCS fields the target tool can't express — surface them as warnings and as comments in the emitted file. The next reader needs to know the validator is incomplete relative to the contract.
+- **Enforce on both write and read.** Default to wiring a validator on both sides of every boundary the contract crosses: the producer validates on write, the next consumer validates on read. Single-sided enforcement is the default failure mode for data contracts in the wild — writers trust their own code, readers trust the upstream, and bad rows land silently in between. The user may opt out per boundary, but warn and require a reason recorded as a comment in the emitted file. See the "Enforcement boundaries" section of `data-contract-core` for the medallion-flow picture.
 - **Emit only what the user asked for.** If the user picked Pandera, don't also write a Soda file. Multi-validator emission is opt-in.
 - **Layer strictness is non-negotiable for gold.** If a gold contract is missing freshness or FK / uniqueness, refuse to emit and route back to `/draft-data-contract`. The whole point of the layer is the strictness contract.
 - **Test the validators, don't just emit them.** Show the run command in the conversation and recommend the user run it before committing. A validator file the user can't invoke is no enforcement at all.
