@@ -1,11 +1,11 @@
 ---
 name: update-docs
-description: Audit the repo's documentation against the current code, then update what's stale and add what's missing. Use when the user asks to "refresh the docs", "check the docs", or after a feature lands that may have left docs behind. Optional final step in the coding loop, after /review.
+description: Audit the repo's documentation against the current code, then update what's stale and add what's missing. Use when the user asks to "refresh the docs", "check the docs", or after a feature lands that may have left docs behind. Optional final step in the coding loop, after /review-suite.
 ---
 
 `/update-docs` finds every doc in the repo (and the docs that *should* exist but don't), checks each against the current code, and proposes a concrete set of edits. The user approves before any file is written.
 
-This is broader than `/review`'s "Docs to update" line: it walks the whole repo, not just the current diff.
+This walks the whole repo, not just the current diff — so it catches drift `/review-suite` (diff-scoped) won't.
 
 ## Determine scope
 

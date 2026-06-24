@@ -59,7 +59,7 @@ Surface any reconciliation problems explicitly:
 ## Edge cases
 
 - **No diary.md**: nothing to rehydrate. Suggest `/build` to start fresh.
-- **All steps completed in diary**: suggest `/review`.
+- **All steps completed in diary**: suggest `/review-suite`.
 - **User wants to restart a step**: honor "redo step N" and reset the diary's current-step pointer.
 - **User wants to skip ahead**: honor "skip to step M" but warn if prerequisite steps look incomplete.
 

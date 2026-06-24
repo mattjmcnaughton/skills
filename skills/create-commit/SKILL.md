@@ -1,6 +1,6 @@
 ---
 name: create-commit
-description: Generate and apply a Conventional Commits message for staged changes (or a specified scope). Use after /review when the changes are ready to land, or during /build for checkpoint commits.
+description: Generate and apply a Conventional Commits message for staged changes (or a specified scope). Use after /review-suite when the changes are ready to land, or during /build for checkpoint commits.
 ---
 
 Produce a Conventional Commits-formatted message for the requested scope, present it for approval, and commit on confirmation.

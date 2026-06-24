@@ -3,7 +3,7 @@ name: prep
 description: Interview the user and produce `.agentic/<slug>/plan.md` defining goal, optimization target, acceptance criteria, verification plan, research, environment readiness, and implementation approach. Use after /create-worktree and before /build.
 ---
 
-`/prep` is one conversation that produces one artifact: `.agentic/<slug>/plan.md`. It interviews the user, probes the codebase, verifies the environment is ready for autonomous execution, and writes everything `/build` and `/review` will need.
+`/prep` is one conversation that produces one artifact: `.agentic/<slug>/plan.md`. It interviews the user, probes the codebase, verifies the environment is ready for autonomous execution, and writes everything `/build` will need.
 
 ## Locate the workspace
 
@@ -44,7 +44,7 @@ Each offer is a single sentence ("Want to grill this before we move on?"). The u
 
 **Acceptance criteria.** 3-5 testable bullets. Each must have a concrete verification (a test, a command, a demonstration). Avoid "code is clean" — say "API returns 200 for valid input". For measurable improvements (latency, error rate), include baseline + target + how to measure.
 
-**Verification plan.** How `/build` and the user will confirm the work. Specific commands to run, URLs to visit, what output looks like when correct. Designed *now* so `/build` knows how to present its work and `/review` knows what to check.
+**Verification plan.** How `/build` and the user will confirm the work. Specific commands to run, URLs to visit, what output looks like when correct. Designed *now* so `/build` knows how to present its work and the user knows what to check before committing.
 
 **Research / context.** Codebase patterns and file paths the implementation will mirror. External docs or best practices. Domain concepts. Be concrete with paths and function names; this is what `/build` reads to avoid re-discovering everything.
 

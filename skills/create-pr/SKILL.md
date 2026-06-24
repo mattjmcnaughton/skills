@@ -33,8 +33,8 @@ Push the active branch to origin and open a GitHub PR via `gh`. The body is comp
 <2-4 bullets distilled from plan.md goal + diary highlights>
 
 ## Acceptance criteria
-<paste the criteria from plan.md, with each line preceded by `- [x]` if /review marked it PASS,
- `- [ ]` if not yet verified or partial>
+<paste the criteria from plan.md as `- [ ]` checkboxes; the reviewer ticks them off
+ while walking the Test plan below>
 
 ## Test plan
 <paste plan.md's Verification plan as a checklist the reviewer can run>
