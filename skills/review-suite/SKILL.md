@@ -41,9 +41,11 @@ Install them and retry.
 
 ## Fan-out
 
-Spawn one subagent per sub-skill, in parallel, in a single message. Each subagent runs its skill against the resolved target diff and returns a JSON array of findings.
+**When subagent spawning is available, prefer it.** Spawn one subagent per sub-skill, in parallel, in a single message (e.g. multiple `Task`/`Agent` tool calls in one turn). Each subagent runs its skill against the resolved target diff and returns a JSON array of findings. This is the preferred path: it isolates each lens in its own context and runs them concurrently.
 
-Prompt shape per subagent:
+If subagent fan-out is **not** available in the current harness (no `Task`/`Agent` tool, or the environment can't spawn parallel subagents), fall back to running each sub-skill sequentially in the main conversation. The fallback produces the same findings JSON per skill and feeds the same dedupe step — only the concurrency and context isolation are lost. Note in the report which path was used.
+
+Prompt shape per subagent (also the per-skill instruction in the sequential fallback):
 
 > Run `/<sub-skill>` on the diff produced by `<diff command>`. Return ONLY a JSON array of findings, no prose around it. Each finding: `{"file": str, "line": int, "line_end": int|null, "severity": "critical|warn|nit", "summary": str, "rationale": str|null, "source": "<sub-skill>"}`. Use `line` = `line_end` for single-line findings. If the skill has no findings, return `[]`.
 
@@ -121,7 +123,7 @@ This step is convenience, not contract: a missing or broken Hunk install must no
 ## Guidelines
 
 - Fail closed when a sub-skill is missing — never silently run a partial suite.
-- Run sub-skills in parallel; do not chain them sequentially.
+- Prefer fanning sub-skills out as parallel subagents when the harness supports it; only chain them sequentially as a fallback when subagent spawning is unavailable.
 - Trust each sub-skill's own judgment about what counts as a finding — do not re-filter or re-categorize beyond the dedupe step.
 - The suite is code-quality only. If the user asks for acceptance-criteria checks, point them at a future `/verify` skill (not yet built) rather than expanding scope here.
 - Plain text only in terminal output. No emojis. If pushing to Hunk, keep comment summaries short — put detail in `rationale`.
