@@ -43,6 +43,8 @@ Standalone helpers, not part of the coding loop.
 | Skill | Role |
 |---|---|
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review-suite`. |
+| `/correctness-review` | Adversarial diff review for logic bugs and weak tests, supplemented by relevant correctness cheat sheets |
+| `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
 | `/draft-api-client` | Interview the user about an API client and draft a plan covering a clean client, contract tests, a fake client, and an opt-in integration test. Hand off to `/build`. |
 | `/draft-job-map` | Interview the user about a broad space and produce a concise, precise Jobs-to-Be-Done map: actors, jobs, circumstances, competing alternatives, success criteria. Pairs with `/hire-job-map`. |
 | `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
@@ -80,6 +82,7 @@ skills/
 ├── create-diagram/SKILL.md
 ├── create-pr/SKILL.md
 ├── create-worktree/SKILL.md
+├── correctness-review/SKILL.md
 ├── data-contract-core/SKILL.md
 ├── delete-worktree/SKILL.md
 ├── draft-api-client/SKILL.md
@@ -97,6 +100,7 @@ skills/
 ├── rehydrate/SKILL.md
 ├── review-suite/SKILL.md
 ├── review-pr/SKILL.md
+├── security-review/SKILL.md
 ├── setup-permissions/SKILL.md
 ├── ship-gate/SKILL.md
 ├── sync-remote/SKILL.md
