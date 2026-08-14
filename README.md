@@ -28,12 +28,13 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/rehydrate` | Reload context from `plan.md` + `diary.md` after a `/clear` or interruption |
 | `/create-commit` | Conventional Commits message for staged changes (or a specified scope) |
 | `/create-pr` | Push the branch and open a GitHub PR with title/body derived from `plan.md` + `diary.md` |
+| `/prove` | Produce falsifiable evidence that the change does what it claims; falsify each artifact against the base tree; report PROVEN / VACUOUS / UNPROVEN per claim |
 | `/sync-remote` | Amend the current commit with pertinent follow-up edits, force-push safely, and refresh its GitHub PR or GitLab MR description |
 | `/review-pr` | Review an open GitHub PR (yours or others'); adapts depth via mode (iteration/standard/critical/security) |
 | `/merge-pr` | Merge an approved PR via rebase and delete the remote branch |
 | `/delete-worktree` | Tear down the local worktree and branch created by `/create-worktree` |
 
-Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
+Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/review` and `/prove` are complementary axes — one judges how the code is written, the other whether it works. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
 
 ### Other skills
 
@@ -92,6 +93,7 @@ skills/
 │   ├── SKILL.md
 │   └── duckdb-parquet.sh
 ├── prep/SKILL.md
+├── prove/SKILL.md
 ├── rehydrate/SKILL.md
 ├── review/SKILL.md
 ├── review-pr/SKILL.md

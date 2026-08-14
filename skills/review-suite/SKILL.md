@@ -5,7 +5,7 @@ description: Fan-out wrapper that runs the installed code-quality review skills 
 
 `/review-suite` runs several focused review skills in parallel and dedupes their findings into one terminal report. Hunk is an optional second medium: if the user is already reviewing in Hunk, the suite can push the same findings into the live session as inline comments.
 
-It is **strictly code-quality oriented**. It does not read `plan.md` and does not verify acceptance criteria — that responsibility belongs elsewhere.
+It is **strictly code-quality oriented**. It does not read `plan.md` and does not check acceptance criteria — `/prove` owns that.
 
 ## Target
 
@@ -125,7 +125,7 @@ This step is convenience, not contract: a missing or broken Hunk install must no
 - Fail closed when a sub-skill is missing — never silently run a partial suite.
 - Prefer fanning sub-skills out as parallel subagents when the harness supports it; only chain them sequentially as a fallback when subagent spawning is unavailable.
 - Trust each sub-skill's own judgment about what counts as a finding — do not re-filter or re-categorize beyond the dedupe step.
-- The suite is code-quality only. If the user asks for acceptance-criteria checks, point them at a future `/verify` skill (not yet built) rather than expanding scope here.
+- The suite is code-quality only. If the user asks for acceptance-criteria checks or evidence that the change works, point them at `/prove` rather than expanding scope here.
 - Plain text only in terminal output. No emojis. If pushing to Hunk, keep comment summaries short — put detail in `rationale`.
 - Do not auto-fix. The sub-skills surface findings; the user (or a follow-up pass) acts on them.
 - Do not write any artifact under `.agentic/<slug>/`. The terminal report is the primary output; Hunk is an optional secondary medium.
