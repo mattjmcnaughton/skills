@@ -1,17 +1,19 @@
 ---
 name: prove
-description: Produce falsifiable evidence that a change does what it claims. Extracts claims from `plan.md` acceptance criteria or infers them from the diff, picks the cheapest falsifiable evidence per claim, then proves each artifact by running its counterfactual — the new test on the base ref, the same screenshot before the change, the same benchmark on both trees. Proposes its capture plan — naming the tooling, such as agent-browser versus Playwright, and any install it would need — and waits for approval before capturing anything. Reports PROVEN, VACUOUS, or UNPROVEN per claim and packages the result as a reviewer-facing `EVIDENCE.md` ready to paste into a PR or MR. Read-only; never edits the repo. Use after `/build` and before `/create-pr`, or when the user says "prove it", "show it works", "evidence for this change", "red-green proof", "before and after".
+description: Produce falsifiable evidence that a change does what it claims. Extracts claims from `plan.md` acceptance criteria or infers them from the diff, picks the cheapest falsifiable evidence per claim, then runs the exact same proof artifact against the changed and counterfactual code. Proposes its capture plan — including tooling, installs, cost, and side effects — and waits for approval before capturing anything. Reports PROVEN, VACUOUS, or UNPROVEN per claim and packages the result as a reviewer-facing `EVIDENCE.md` ready to paste into a PR or MR. Never edits repo source or index. Use after `/review-suite` findings are resolved and before `/create-pr`, or when the user says "prove it", "show it works", "evidence for this change", "red-green proof", "before and after".
 ---
 
 `/prove` answers one question a reviewer cannot answer from a diff: **does this change actually do what it claims?** It gathers evidence per claim, then attacks each piece of evidence to see whether it survives.
 
 It is the acceptance-criteria counterpart to `/review-suite`. `/review-suite` judges how the code is written; `/prove` judges whether it works. Neither substitutes for the other.
 
+The normal order is `/build` → `/review-suite` → `/prove`: `/build` already runs the task's verification plan, while `/prove` packages evidence from the final reviewed diff. Steps 1–3 can run alongside review to prepare the capture plan, but capture only after review findings are resolved; otherwise a subsequent edit makes the evidence stale. If build verification is uncertain, run `/prove` early as a diagnostic and rerun it after later edits.
+
 ## The rule
 
 **Evidence that would look identical if the change did not work is not evidence.**
 
-Every artifact needs a counterfactual — the same artifact produced from a world without the change. A test that was never seen failing, a screenshot with no "before", a single benchmark run: these are decorations. `/prove` produces the counterfactual for each artifact and reports the ones that don't survive.
+Every artifact needs a counterfactual — the exact same test, harness, script, input, and command run against a world without the implementation change. A test that was never seen failing, a screenshot with no "before", a single benchmark run: these are decorations. A missing test file, import error, setup failure, or absent dependency on the base tree is not a successful falsification; it says the comparison was invalid. `/prove` produces a valid counterfactual for each artifact and reports the ones that do not survive.
 
 ## When not to use
 
@@ -34,7 +36,7 @@ If the target has no diff, report that and exit.
 
 A claim is one falsifiable statement about behavior. "Rejects negative quantities with a 422" is a claim; "improves validation" is not.
 
-- If `.agentic/<slug>/plan.md` exists, take the acceptance criteria as the claims verbatim. Do not re-derive them.
+- If `.agentic/<slug>/plan.md` exists, preserve each acceptance criterion's wording and intent. Split a compound criterion into separately falsifiable claims, and mark vague or non-falsifiable criteria UNPROVEN rather than silently rewriting their promise.
 - Otherwise, infer 3-5 claims from the diff and confirm them with the user in a single question before doing any work. Getting the claims wrong wastes the whole run.
 
 Claims the diff implies but nobody stated — a changed default, a new outbound call, a widened permission — get added as claims too. Unstated behavior changes are exactly what reviewers miss.
@@ -51,23 +53,25 @@ Cheapest evidence that is still falsifiable. Not the most impressive. A pure-fun
 | CLI output, API response, generated file | Command transcript from both trees | The diff between the two transcripts |
 | Rendering, layout, visual state | Screenshot pair | The "before" shot lacks the thing |
 | Interaction, timing, animation, multi-step flow | Screencast | Base-tree run of the identical script |
-| Latency, throughput, memory | Benchmark, n>=10, both trees | Overlapping distributions kill the claim |
+| Latency, throughput, memory | Repository benchmark harness, both trees | Compare the statistic and uncertainty named by the claim under identical conditions |
 | Refactor with no intended behavior change | Existing suite green on both trees, plus coverage of the touched lines | A behavior difference would surface |
 
 If a claim has no affordable falsifiable evidence, say so and move on. That gap is a finding, not a failure.
+
+For tests and executable harnesses, identify the **proof artifact** separately from the implementation. The proof artifact is the smallest test, fixture, script, or external harness needed to ask the claim's question. Freeze that artifact before either run and use byte-identical content and the identical command on both sides. Do not let the base run omit a new test or receive implementation code disguised as test setup.
 
 ## Step 3: Propose the capture plan and wait
 
 **Capture nothing and install nothing before the user approves this plan.** Reading the diff, resolving the forge, and detecting available tooling are fine; producing artifacts is not.
 
-Present one table covering every claim, then stop and wait. The point is that the user sees the tooling choice and the cost before any of it is spent — swapping a video for a screenshot pair, or dropping a claim, is nearly free here and expensive afterwards.
+Present one table covering every claim, then stop and wait. The point is that the user sees the tooling choice, cost, and external effects before any of it is spent — swapping a video for a screenshot pair, redirecting a test away from a shared database, or dropping a claim is nearly free here and expensive afterwards.
 
-| Claim | Evidence | Tool | Counterfactual | Cost |
-|---|---|---|---|---|
-| 1. Rejects negative quantity | Unit test | pytest, existing | base tree | seconds |
-| 2. Banner renders on checkout | Screenshot pair | agent-browser | pixel diff | ~2 min, needs both dev servers |
-| 3. Retry animation is smooth | Screencast | **Playwright `recordVideo` — not installed** | base-tree run of same script | ~10 min plus a new dependency |
-| 4. No SSO regression | none | — | — | UNPROVEN, no test covers this path |
+| Claim | Evidence | Tool | Counterfactual | Cost | Side effects |
+|---|---|---|---|---|---|
+| 1. Rejects negative quantity | Unit test | pytest, existing | artifact over base tree | seconds | none |
+| 2. Banner renders on checkout | Screenshot pair | agent-browser | pixel diff | ~2 min, needs both dev servers | local fixture DB writes |
+| 3. Retry animation is smooth | Screencast | **Playwright `recordVideo` — not installed** | base-tree run of same script | ~10 min plus a new dependency | browser download, local server |
+| 4. No SSO regression | none | — | — | UNPROVEN, no test covers this path | — |
 
 Name the tool explicitly, never just "a screenshot". The choice the user most needs to see is the visual one:
 
@@ -78,27 +82,52 @@ Name the tool explicitly, never just "a screenshot". The choice the user most ne
 | asciinema / vhs | Terminal interactivity or timing | New binary |
 | none — test or transcript | Everything else | Free, and diffable |
 
-Flag anything that would be installed, in bold, in the row that needs it. A plan that silently adds Playwright to prove a claim a screenshot pair would have covered is the failure this gate exists to prevent.
+Flag anything that would be installed, in bold, in the row that needs it. Name network calls, database or filesystem writes, credentials, paid APIs, shared services, and any production-like target. Default to local, seeded, disposable dependencies. A plan that silently adds Playwright to prove a claim a screenshot pair would have covered — or points a test at a shared database — is the failure this gate exists to prevent.
 
 The user may approve, drop claims, downgrade evidence, or swap tools. Honor the amended plan without re-arguing it.
 
 ## Step 4: Falsify
 
-All execution happens in throwaway worktrees. The user's working tree is never touched.
+All execution happens in throwaway worktrees. The source files and index in the user's working tree are never modified. Capture the complete candidate state, including staged, unstaged, and untracked non-ignored files; otherwise the HEAD proof may not represent the change under review.
 
 ```bash
-BASE=$(git merge-base main HEAD)
+AGAINST=<resolved target ref>   # main unless --against supplied another ref
+BASE=$(git merge-base "$AGAINST" HEAD)
 WORK=$(mktemp -d)
-git worktree add "$WORK/base" "$BASE"
+ROOT=$(git rev-parse --show-toplevel)
+
+cleanup() {
+  git worktree remove --force "$WORK/base" 2>/dev/null || true
+  git worktree remove --force "$WORK/head" 2>/dev/null || true
+  rm -rf "$WORK"
+}
+trap cleanup EXIT INT TERM
+
+git diff --binary HEAD > "$WORK/tracked.patch"
+git -C "$ROOT" ls-files --others --exclude-standard -z > "$WORK/untracked.list"
+tar -C "$ROOT" --null -T "$WORK/untracked.list" -cf "$WORK/untracked.tar"
+
+git worktree add --detach "$WORK/base" "$BASE"
 git worktree add --detach "$WORK/head" HEAD
-git diff HEAD | (cd "$WORK/head" && git apply)   # only when uncommitted work exists
+(cd "$WORK/head" && git apply "$WORK/tracked.patch")
+tar -C "$WORK/head" -xf "$WORK/untracked.tar"
 ```
 
-Run every artifact in `$WORK/head`, then the identical command in `$WORK/base`. Capture both. Remove both worktrees when done (`git worktree remove --force`).
+### Freeze and transport the proof artifact
 
-**Mutation fallback.** When the base tree cannot run the artifact at all — the test imports a module that does not exist yet, a new dependency isn't installed, the file is new — falsify by mutation instead: in `$WORK/head`, neutralize the smallest piece of the change (flip the new condition, delete the new call, restore the old constant), rerun, confirm red, then `git checkout -- .` in that throwaway tree.
+The HEAD worktree gets the complete candidate change. The base worktree gets **only the proof artifact**, never the implementation change.
 
-Record which mode was used. They prove different things: base-ref proves *this diff* causes the behavior; mutation proves *this line* does.
+1. Materialize the approved proof artifact outside both worktrees, under `$WORK/artifact`. It may be an external harness, or an evidence-only patch containing a test and the minimum fixtures needed to run it.
+2. If the test already lives in the candidate diff, extract only its evidence paths or hunks. Inspect the patch: no production implementation, generated output that embeds the expected answer, or fixture that bypasses the behavior may cross into base.
+3. Materialize byte-identical artifact content in both worktrees and verify its digest there. If the candidate already contains the test, HEAD already has its copy and only base needs the evidence overlay; otherwise copy the frozen artifact into both. Record the identical invocation and relevant non-secret environment used for both runs.
+4. Run HEAD first. If it does not pass, the claim is UNPROVEN; do not interpret the base result.
+5. Run base. Only a behavioral assertion mismatch tied to the claim is a valid falsification. Test-not-found, compile/import errors, missing dependencies, migration failures, and setup errors make the base comparison invalid. Repair the artifact boundary or use the mutation fallback; if neither works, report UNPROVEN.
+
+For an unchanged existing test already present in both trees, the test itself is the frozen artifact; record its path and command, and do not create an overlay. For a command transcript, screenshot, or benchmark, the command or capture script plus its inputs is the artifact and must likewise be identical.
+
+**Mutation fallback.** Use this only when the base API genuinely cannot host the frozen artifact. In `$WORK/head`, first confirm the artifact passes. Then make one minimal semantic mutation that negates the claimed behavior — for example restore the changed comparison or old constant — and save the mutation diff. The same artifact must now fail with a behavioral assertion tied to the claim. Reverse only that recorded mutation (do not `git checkout -- .`, which would erase candidate overlays), verify the candidate and artifact digests, and rerun once more to confirm it passes. A syntax, import, compile, setup, or unrelated failure does not count. Discard the scratch worktree afterward.
+
+Record the artifact digest and which mode was used. They prove different things: base-ref proves *this diff* causes the behavior; mutation proves the explicitly recorded semantic delta is necessary for it.
 
 ### Capturing visual evidence
 
@@ -126,9 +155,9 @@ Prefer not to. Video is not diffable, not searchable, and not regression protect
 
 | Verdict | Meaning |
 |---|---|
-| PROVEN | Artifact passes on head and its counterfactual failed as required |
+| PROVEN | The frozen artifact passes on HEAD and produces a claim-specific behavioral failure under a valid base-ref or mutation counterfactual |
 | VACUOUS | Artifact exists but the counterfactual also passed — the test is green on base, the screenshots are identical. Report loudly; this is worse than no evidence because it looks like evidence |
-| UNPROVEN | No falsifiable artifact could be produced |
+| UNPROVEN | No falsifiable artifact could be produced, HEAD did not pass, or the counterfactual failed only because its setup was invalid |
 | ASSERTED | Prose reasoning only. Never counts as evidence; label it so the reviewer knows what they are trusting |
 
 Lead the report with VACUOUS and UNPROVEN. The claims that failed to prove are the most useful thing `/prove` produces.
@@ -138,15 +167,17 @@ Lead the report with VACUOUS and UNPROVEN. The claims that failed to prove are t
 - A test written after the implementation that was never observed failing.
 - An assertion that restates the implementation (`assert format(x) == format(x)`).
 - A test whose mocks are deep enough that it asserts the mock, not the system.
+- A base run that uses a different test, input, command, or fixture from HEAD.
+- A test-not-found, import, compile, dependency, migration, or setup failure presented as red evidence.
 - An "after" screenshot with no "before".
 - A single benchmark run, or two runs on different machines or trees with different build flags.
 - A green CI badge. It proves the suite passes, not that the suite tests the claim.
 
-When an artifact falls into one of these, mark it VACUOUS and name which one.
+Mark a non-distinguishing artifact VACUOUS. Mark a comparison that changed the artifact or failed in setup UNPROVEN. Name the reason explicitly.
 
 ## Output
 
-`.agentic/<slug>/evidence/` — already gitignored, so nothing is committed by default. Outside a task workspace, use `$(mktemp -d)` and print the path.
+Prefer `.agentic/<slug>/evidence/` only when a task workspace exists **and** `git check-ignore -q .agentic/<slug>/evidence/` confirms the path is ignored. Otherwise use `$(mktemp -d)` and print the path. Never add an ignore rule, stage an artifact, or assume every target repository ignores `.agentic/`.
 
 ```
 evidence/
@@ -160,20 +191,22 @@ evidence/
 ```
 Claim 1: POST /orders rejects negative quantity with 422
   Evidence:     test_orders.py::test_negative_quantity_rejected (unit)
-  Falsified by: base ref a1b2c3d -> FAILED (returned 201)
+  Artifact:     sha256:8e7... (identical test + command on both trees)
+  Falsified by: base ref a1b2c3d -> ASSERTION FAILED (returned 201, expected 422)
   Verdict:      PROVEN
 
 Claim 2: retry backoff caps at 30s
   Evidence:     test_retry.py::test_backoff_cap (unit)
+  Artifact:     sha256:11a... (identical test + command on both trees)
   Falsified by: base ref a1b2c3d -> PASSED
   Verdict:      VACUOUS -- test is green without the change; it asserts the loop
                 bound, not the cap
 
 Claim 3: 30% faster under load
-  Evidence:     logs/bench.txt (n=20, p50 412ms head vs 588ms base)
+  Evidence:     logs/bench.txt (repo harness, p50 412ms head vs 588ms base)
   Falsified by: same harness, both trees
-  Verdict:      PROVEN (p95 distributions overlap; the p50 claim holds, a p95
-                claim would not)
+  Verdict:      PROVEN (reported uncertainty excludes 0 for p50; p95 intervals
+                overlap, so a p95 claim would be UNPROVEN)
 
 Claim 4: no regression for existing SSO users
   Evidence:     none -- no test exercises the SSO path
@@ -225,11 +258,12 @@ Media captured (drag into the PR comment to embed):
 
 ## Guidelines
 
-- Read-only. `/prove` never edits repo source, never touches the user's working tree, and never pushes anything. Mutations happen in throwaway worktrees and are discarded.
+- Source/index safe. `/prove` never edits repo source or index and never pushes anything. It may write approved evidence only to a confirmed ignored path; otherwise it uses a temporary directory. Candidate overlays and mutations happen in throwaway worktrees and are discarded.
 - Never capture and never install before the Step 3 plan is approved. Detecting what is available is fine; spending on it is not.
 - Never chain into `/create-pr` or `/build`. An UNPROVEN claim routes the user back to `/build`; say so and stop.
 - Report VACUOUS findings first and without softening. A reviewer trusting a vacuous test is the failure mode this skill exists to prevent.
 - Do not judge code quality, naming, or structure. That is `/review-suite`.
 - Prefer under-claiming. "The p50 claim holds, the p95 claim does not" beats "faster".
-- Clean up worktrees even on failure.
+- A red base or mutation run counts only when the frozen artifact reached a claim-specific behavioral assertion. Infrastructure red is UNPROVEN, never PROVEN.
+- Install traps before creating worktrees and clean them up on success, failure, or interruption.
 - Plain text only. No emojis. No AI attribution in any posted comment.
