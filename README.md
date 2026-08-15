@@ -24,17 +24,17 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/create-worktree` | Initialize an isolated git worktree, branch, and `.agentic/<slug>/` workspace |
 | `/prep` | Interview the user; produce a single `plan.md` (goal, optimization target, acceptance criteria, verification plan, research, environment readiness, steps) |
 | `/build` | Execute `plan.md` step by step; always write `diary.md`; ask up front about checkpoint commits and TDD |
-| `/review` | Pre-commit self-review of local changes against `plan.md`; output `review.md` |
+| `/review-suite` | Run the installed code-quality review lenses in parallel and dedupe their findings |
+| `/prove` | Produce falsifiable evidence that the change does what it claims; falsify each artifact against the base tree; report PROVEN / VACUOUS / UNPROVEN per claim |
 | `/rehydrate` | Reload context from `plan.md` + `diary.md` after a `/clear` or interruption |
 | `/create-commit` | Conventional Commits message for staged changes (or a specified scope) |
 | `/create-pr` | Push the branch and open a GitHub PR with title/body derived from `plan.md` + `diary.md` |
-| `/prove` | Produce falsifiable evidence that the change does what it claims; falsify each artifact against the base tree; report PROVEN / VACUOUS / UNPROVEN per claim |
 | `/sync-remote` | Amend the current commit with pertinent follow-up edits, force-push safely, and refresh its GitHub PR or GitLab MR description |
 | `/review-pr` | Review an open GitHub PR (yours or others'); adapts depth via mode (iteration/standard/critical/security) |
 | `/merge-pr` | Merge an approved PR via rebase and delete the remote branch |
 | `/delete-worktree` | Tear down the local worktree and branch created by `/create-worktree` |
 
-Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/review` and `/prove` are complementary axes — one judges how the code is written, the other whether it works. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
+Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/build` establishes that the implementation works, `/review-suite` judges how it is written, and `/prove` packages falsifiable evidence from the final reviewed diff. You can prepare `/prove`'s capture plan while review runs, but capture after resolving review findings so the evidence still describes the code being shipped. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
 
 ### Other skills
 
@@ -42,7 +42,7 @@ Standalone helpers, not part of the coding loop.
 
 | Skill | Role |
 |---|---|
-| `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review`. |
+| `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review-suite`. |
 | `/draft-api-client` | Interview the user about an API client and draft a plan covering a clean client, contract tests, a fake client, and an opt-in integration test. Hand off to `/build`. |
 | `/draft-job-map` | Interview the user about a broad space and produce a concise, precise Jobs-to-Be-Done map: actors, jobs, circumstances, competing alternatives, success criteria. Pairs with `/hire-job-map`. |
 | `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
@@ -95,7 +95,7 @@ skills/
 ├── prep/SKILL.md
 ├── prove/SKILL.md
 ├── rehydrate/SKILL.md
-├── review/SKILL.md
+├── review-suite/SKILL.md
 ├── review-pr/SKILL.md
 ├── setup-permissions/SKILL.md
 ├── ship-gate/SKILL.md
