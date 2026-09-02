@@ -49,8 +49,9 @@ Standalone helpers, not part of the coding loop.
 | `/draft-job-map` | Interview the user about a broad space and produce a concise, precise Jobs-to-Be-Done map: actors, jobs, circumstances, competing alternatives, success criteria. Pairs with `/hire-job-map`. |
 | `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
-| `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
+| `/audit-bug-patterns` | Audit the last N commits or a commit date range, classify recurring bug causes and escape factors, and rank durable prevention in code, tests, tooling, and progressively disclosed docs. Local-first; remote history and ticket systems require explicit confirmation. |
 | `/audit-data-contracts` | Audit a host repo (dbt, Python pipelines, Spark, SQL) for implicit data contracts. Surfaces datasets without owners, schemas without nullability, columns that look like enums but aren't pinned, and pipelines without freshness SLAs. Each finding routes to a suggested `/draft-data-contract` invocation. |
+| `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
 | `/draft-data-contract` | Interview the user about a dataset or pipeline boundary and produce an Open Data Contract Standard (ODCS) YAML contract covering schema, semantics, quality, freshness SLA, and ownership. Supports an optional medallion `layer: bronze\|silver\|gold` field. Pairs with `/enforce-data-contract` and `/synth-from-contract`. |
 | `/enforce-data-contract` | Take an ODCS contract and generate validation code in the host stack: dbt model contracts plus tests, Great Expectations suites, Soda checks, Pandera schemas, or Pydantic models. Honors layer-strictness defaults and surfaces ODCS fields the target tool can't express as warnings. |
 | `/synth-from-contract` | Take an ODCS contract and generate realistic, constraint-respecting synthetic data: Parquet, CSV, JSON Lines, a DuckDB table, or a Faker factory class. Deterministic by default. Tier-2 (constraint-respecting) only; distribution-learning (SDV) is out of scope. |
@@ -75,6 +76,7 @@ Standalone helpers, not part of the coding loop.
 ```
 skills/
 ├── add-permissions/SKILL.md
+├── audit-bug-patterns/SKILL.md
 ├── audit-data-contracts/SKILL.md
 ├── audit-third-party/SKILL.md
 ├── build/SKILL.md
