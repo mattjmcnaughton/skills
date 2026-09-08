@@ -46,8 +46,6 @@ Standalone helpers, not part of the coding loop.
 | `/correctness-review` | Adversarial diff review for logic bugs and weak tests, supplemented by relevant correctness cheat sheets |
 | `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
 | `/draft-api-client` | Interview the user about an API client and draft a plan covering a clean client, contract tests, a fake client, and an opt-in integration test. Hand off to `/build`. |
-| `/draft-job-map` | Interview the user about a broad space and produce a concise, precise Jobs-to-Be-Done map: actors, jobs, circumstances, competing alternatives, success criteria. Pairs with `/hire-job-map`. |
-| `/hire-job-map` | Take a job map and stack-rank candidate solutions per job. Biased toward existing OSS / self-hostable options; includes "keep the current hire" and "build from scratch" as honest baselines. Hands off to `/fetch-context` and `/audit-third-party` for verification. |
 | `/pressure-testing-scope` | Pressure-test a PRD, technical design document, or implementation plan; classify commitments to keep, cut, defer, or justify, then propose the minimum coherent scope. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
@@ -88,10 +86,8 @@ skills/
 ├── delete-worktree/SKILL.md
 ├── draft-api-client/SKILL.md
 ├── draft-data-contract/SKILL.md
-├── draft-job-map/SKILL.md
 ├── enforce-data-contract/SKILL.md
 ├── fetch-context/SKILL.md
-├── hire-job-map/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
 │   ├── SKILL.md
