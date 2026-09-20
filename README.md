@@ -43,6 +43,7 @@ Standalone helpers, not part of the coding loop.
 | Skill | Role |
 |---|---|
 | `/static-html` | Create a polished, self-contained HTML page with embedded React, compiled Tailwind CSS, and assets; works offline when opened directly in a browser. |
+| `/kaizen` | Confirm accessible project chat sessions over a time range, then recommend evidence-backed repo and agentic coding skill improvements. Prefers `agent-logs-extractor` with native-source fallbacks. |
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review-suite`. |
 | `/correctness-review` | Adversarial diff review for logic bugs and weak tests, supplemented by relevant correctness cheat sheets |
 | `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
@@ -83,6 +84,7 @@ skills/
 ├── delete-worktree/SKILL.md
 ├── draft-api-client/SKILL.md
 ├── fetch-context/SKILL.md
+├── kaizen/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
 │   ├── SKILL.md
