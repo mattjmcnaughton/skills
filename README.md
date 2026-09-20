@@ -42,6 +42,7 @@ Standalone helpers, not part of the coding loop.
 
 | Skill | Role |
 |---|---|
+| `/static-html` | Create a polished, self-contained HTML page with embedded React, compiled Tailwind CSS, and assets; works offline when opened directly in a browser. |
 | `/update-docs` | Audit the repo's docs against current code; propose and apply edits. Optional step after `/review-suite`. |
 | `/correctness-review` | Adversarial diff review for logic bugs and weak tests, supplemented by relevant correctness cheat sheets |
 | `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
@@ -93,6 +94,7 @@ skills/
 ├── security-review/SKILL.md
 ├── setup-permissions/SKILL.md
 ├── ship-gate/SKILL.md
+├── static-html/SKILL.md
 ├── sync-remote/SKILL.md
 ├── update-docs/SKILL.md
 ├── upload-files/
