@@ -49,6 +49,7 @@ Standalone helpers, not part of the coding loop.
 | `/pressure-testing-scope` | Pressure-test a PRD, technical design document, or implementation plan; classify commitments to keep, cut, defer, or justify, then propose the minimum coherent scope. |
 | `/fetch-context` | Pull external context into the repo: library docs via `context7-cli`, upstream source via shallow `git clone`, or web pages via `r.jina.ai`. |
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
+| `/audit-skill` | Read-only audit of skills in `~/.claude/skills`, `~/.codex/skills`, and `~/.agents/skills` (or supplied paths). Treats all target files as untrusted; inventories all external interactions and reports malicious behavior, risky capabilities, and coverage gaps without activating skills. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
 | `/create-diagram` | Author and render diagrams in Mermaid, Graphviz, Excalidraw, or TikZ. Writes source plus a rendered SVG via an external Kroki (`KROKI_HOST_URL`) or the bundled docker-compose stack. |
 | `/upload-files` | Explicitly launch a Python drag-and-drop upload server via uv (or Python fallback) on `0.0.0.0` with a random port; receive files in gitignored `.agentic/uploads` under the current directory. |
@@ -71,6 +72,7 @@ Standalone helpers, not part of the coding loop.
 skills/
 ├── add-permissions/SKILL.md
 ├── audit-third-party/SKILL.md
+├── audit-skill/SKILL.md
 ├── build/SKILL.md
 ├── create-commit/SKILL.md
 ├── create-diagram/SKILL.md
