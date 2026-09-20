@@ -30,7 +30,7 @@ li { margin: 12px 0; overflow-wrap: anywhere; }
 .ok { color: #166334; } .error { color: #a12222; }
 </style>
 <main><h1>Upload files</h1>
-<p>Send files to this temporary session. Files stay out of the repository.</p>
+<p>Send files to .agentic/files in the working directory, excluded from Git.</p>
 <section id="drop" aria-label="File drop area"><strong>Drag files here</strong><br>
 <label for="files">or choose files from your computer</label><br>
 <input id="files" type="file" multiple></section>
@@ -149,23 +149,24 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--directory", type=Path, help="Private session directory")
+    parser.add_argument("--directory", type=Path, default=Path.cwd() / ".agentic",
+                        help="Storage root (default: .agentic in the current directory)")
     args = parser.parse_args()
     os.umask(0o077)
-    directory = args.directory or Path(tempfile.mkdtemp(prefix="upload-files-", dir="/tmp"))
-    directory = directory.resolve()
+    directory = args.directory.resolve()
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    session = Path(tempfile.mkdtemp(prefix="upload-files-", dir=directory))
     with ThreadingHTTPServer(("0.0.0.0", 0), Handler) as server:
         server.uploads = directory / "files"
-        server.staging = directory / "incomplete"
+        server.staging = session / "incomplete"
         server.uploads.mkdir(exist_ok=True)
         server.staging.mkdir(exist_ok=True)
         server.token = secrets.token_urlsafe(32)
         state = {"port": server.server_port, "token": server.token, "directory": str(server.uploads)}
-        pending = directory / "session.json.tmp"
+        pending = session / "session.json.tmp"
         pending.write_text(json.dumps(state))
-        pending.replace(directory / "session.json")
-        print(f"Listening on 0.0.0.0:{server.server_port}; session: {directory}/session.json", flush=True)
+        pending.replace(session / "session.json")
+        print(f"Listening on 0.0.0.0:{server.server_port}; session: {session}/session.json", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
