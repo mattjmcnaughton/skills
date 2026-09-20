@@ -1,9 +1,15 @@
 ---
 name: upload-files
-description: Launches a temporary Python web server with a drag-and-drop file upload page, listening on all interfaces on a random port and saving files under /tmp. Use when the user wants to send local files into the agent's machine or orb.
+description: Launches a temporary Python drag-and-drop upload server on all interfaces on a random port, saving files under /tmp. Use only when the user directly invokes upload-files; never select it automatically for a file-transfer request.
+disable-model-invocation: true
 ---
 
 # Upload files
+
+Only run when the user directly invokes this skill (for example, `/upload-files`
+or `$upload-files`). A general request to upload or transfer files is not an
+invocation. Do not start the server automatically or invoke this skill from
+another skill.
 
 Run the bundled `scripts/server.py` with Python 3. No dependencies to install.
 Resolve the script relative to this skill's directory, not the host repository.
