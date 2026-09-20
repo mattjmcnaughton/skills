@@ -30,7 +30,7 @@ li { margin: 12px 0; overflow-wrap: anywhere; }
 .ok { color: #166334; } .error { color: #a12222; }
 </style>
 <main><h1>Upload files</h1>
-<p>Send files to .agentic/files in the working directory, excluded from Git.</p>
+<p>Send files to .agentic/uploads in the working directory, excluded from Git.</p>
 <section id="drop" aria-label="File drop area"><strong>Drag files here</strong><br>
 <label for="files">or choose files from your computer</label><br>
 <input id="files" type="file" multiple></section>
@@ -157,7 +157,7 @@ def main():
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="upload-files-", dir=directory))
     with ThreadingHTTPServer(("0.0.0.0", 0), Handler) as server:
-        server.uploads = directory / "files"
+        server.uploads = directory / "uploads"
         server.staging = session / "incomplete"
         server.uploads.mkdir(exist_ok=True)
         server.staging.mkdir(exist_ok=True)
