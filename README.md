@@ -25,6 +25,7 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/prep` | Interview the user; produce a single `plan.md` (goal, optimization target, acceptance criteria, verification plan, research, environment readiness, steps) |
 | `/build` | Execute `plan.md` step by step; always write `diary.md`; ask up front about checkpoint commits and TDD |
 | `/review-suite` | Run the installed code-quality review lenses in parallel and dedupe their findings |
+| `/resolve-review` | Plan and execute review fixes using the existing task plan; address clear issues, ask about ambiguous decisions, and record every finding's disposition |
 | `/prove` | Produce falsifiable evidence that the change does what it claims; falsify each artifact against the base tree; report PROVEN / VACUOUS / UNPROVEN per claim |
 | `/rehydrate` | Reload context from `plan.md` + `diary.md` after a `/clear` or interruption |
 | `/create-commit` | Conventional Commits message for staged changes (or a specified scope) |
@@ -34,7 +35,7 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/merge-pr` | Merge an approved PR via rebase and delete the remote branch |
 | `/delete-worktree` | Tear down the local worktree and branch created by `/create-worktree` |
 
-Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/build` establishes that the implementation works, `/review-suite` judges how it is written, and `/prove` packages falsifiable evidence from the final reviewed diff. You can prepare `/prove`'s capture plan while review runs, but capture after resolving review findings so the evidence still describes the code being shipped. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
+Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite` → `/resolve-review` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/build` establishes that the implementation works, `/review-suite` judges how it is written, `/resolve-review` addresses its findings without committing or publishing, and `/prove` packages falsifiable evidence from the final reviewed diff. You can prepare `/prove`'s capture plan while review runs, but capture after resolving review findings so the evidence still describes the code being shipped. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
 
 ### Other skills
 
@@ -63,7 +64,7 @@ Standalone helpers, not part of the coding loop.
 
 ## Conventions
 
-- **One artifact directory per task**: `.agentic/<slug>/`, created by `/create-worktree`. The coding-loop skills read/write `plan.md`, `diary.md`, `review.md`, and `ticket.json` inside it.
+- **One artifact directory per task**: `.agentic/<slug>/`, created by `/create-worktree`. The coding-loop skills read/write `plan.md`, `diary.md`, `review.md`, `review-resolution.md`, and `ticket.json` inside it. `/review-suite` prints its report; `/resolve-review` consumes that report and keeps its fix plan in `review-resolution.md`, separate from the original `plan.md`.
 - **Plain text only.** No emojis in any skill output, commit message, or document.
 - **No AI attribution** in commits, PRs, or generated content unless the user explicitly asks for it.
 - **Skills can route to other skills** by invoking the Skill tool with the target skill name. Used sparingly; most v1 skills are standalone.
@@ -93,6 +94,7 @@ skills/
 ├── pressure-testing-scope/SKILL.md
 ├── prove/SKILL.md
 ├── rehydrate/SKILL.md
+├── resolve-review/SKILL.md
 ├── review-suite/SKILL.md
 ├── review-pr/SKILL.md
 ├── security-review/SKILL.md
