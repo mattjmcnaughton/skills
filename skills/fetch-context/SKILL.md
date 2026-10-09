@@ -1,16 +1,9 @@
 ---
 name: fetch-context
 description: >-
-  Pull external context into the current repo via the `fetch-context` CLI:
-  shallow-clone an upstream repo (or whole GitHub org / GitLab group) into
-  `.agentic/sources/repos/<host>/<owner>/<repo>/` so Read/Grep can use it
-  directly, or fetch an arbitrary web page as clean markdown into
-  `.agentic/sources/urls/<host>/<path>.md`. Use when the user wants to read,
-  grep, or reference an upstream project's source locally, or when they hand
-  you a URL (blog post, RFC, changelog, GitHub issue, vendor page) to read.
-
-  Triggers include: "go read the source of X", "clone X so we can look at it",
-  "what does X do under the hood", "read/summarize/extract from this URL".
+  Fetches upstream repositories for local source inspection or web pages as
+  Markdown. Use to read or grep another project's code, clone an org or group,
+  or read, summarize, or extract content from a supplied URL.
 ---
 
 # fetch-context

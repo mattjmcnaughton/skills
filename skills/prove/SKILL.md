@@ -1,6 +1,6 @@
 ---
 name: prove
-description: Produce falsifiable evidence that a change does what it claims. Extracts claims from `plan.md` acceptance criteria or infers them from the diff, picks the cheapest falsifiable evidence per claim, then runs the exact same proof artifact against the changed and counterfactual code. Proposes its capture plan — including tooling, installs, cost, and side effects — and waits for approval before capturing anything. Reports PROVEN, VACUOUS, or UNPROVEN per claim and packages the result as a reviewer-facing `EVIDENCE.md` ready to paste into a PR or MR. Never edits repo source or index. Use after `/review-suite` findings are resolved and before `/create-pr`, or when the user says "prove it", "show it works", "evidence for this change", "red-green proof", "before and after".
+description: Produces falsifiable evidence using identical checks on changed and counterfactual code. Use for "prove it", "show it works", acceptance evidence, or before/after verification. Requires capture-plan approval; never edits source or index.
 ---
 
 `/prove` answers one question a reviewer cannot answer from a diff: **does this change actually do what it claims?** It gathers evidence per claim, then attacks each piece of evidence to see whether it survives.
@@ -23,7 +23,7 @@ Every artifact needs a counterfactual — the exact same test, harness, script, 
 
 ## Target
 
-Same grammar as `/review-suite`. Default is branch-vs-main, since that's what a reviewer sees.
+Default is branch-vs-main. Use `--against <ref>` to match the base selected for code review; `/prove` does not support `/review-suite`'s `--working-tree` mode.
 
 | Invocation | Scope |
 |---|---|
@@ -77,10 +77,14 @@ Name the tool explicitly, never just "a screenshot". The choice the user most ne
 
 | Tool | Use for | Cost to the user |
 |---|---|---|
-| `agent-browser` | Screenshots, pixel diff | Already this repo's default; localhost-allowlisted |
-| Playwright | Video, scripted multi-step interaction | New runtime dependency, plus browser download |
+| `agent-browser` | Screenshots, pixel diff when installed | Check availability and active security configuration; do not assume either |
+| Playwright | Screenshot fallback when `agent-browser` is not installed; video or scripted multi-step interaction when needed | Reuse an existing installation where available; otherwise runtime and browser downloads require approval |
 | asciinema / vhs | Terminal interactivity or timing | New binary |
 | none — test or transcript | Everything else | Free, and diffable |
+
+For browser evidence, check whether `agent-browser` is installed (for example, `command -v agent-browser`). Prefer it for screenshots when available; **if it is not installed, propose Playwright as the fallback**, including screenshots, rather than assuming browser evidence is unavailable. Inspect existing project dependencies and browser availability without triggering auto-installs (including through `npx`). If Playwright or its browser is missing too, flag the required installs in the plan; install only in the approved scratch environment, never the user's source tree.
+
+**Explicitly ask the user to confirm the named browser tool — `agent-browser` or Playwright — before launching or using it, even when it is already installed.** This confirmation can be part of the Step 3 capture-plan approval; no duplicate prompt is needed when that approval explicitly covers the tool. Approval of one tool does not authorize the other: if availability or execution problems require a switch, amend the plan and wait for approval again. Never use the fallback to bypass a permission denial or security restriction. If the user declines both tools or the required installs, choose approved non-browser evidence where sufficient; otherwise report the affected claims UNPROVEN.
 
 Flag anything that would be installed, in bold, in the row that needs it. Name network calls, database or filesystem writes, credentials, paid APIs, shared services, and any production-like target. Default to local, seeded, disposable dependencies. A plan that silently adds Playwright to prove a claim a screenshot pair would have covered — or points a test at a shared database — is the failure this gate exists to prevent.
 
@@ -135,13 +139,15 @@ Screenshots and video are the artifacts most likely to come out VACUOUS, because
 
 A before/after pair that differs in a rendered timestamp and nothing else is VACUOUS. Say so rather than shipping it.
 
-**Screenshots — agent-browser** (see `docs/browser.md`), which also does the comparison:
+**Screenshots — approved agent-browser or Playwright.** When `agent-browser` is installed and approved (see `docs/browser.md`), it also does the comparison:
 
 ```bash
 agent-browser screenshot --full base.png    # against the base tree's server
 agent-browser screenshot --full head.png    # against the head tree's server
 agent-browser diff screenshot base.png head.png
 ```
+
+When `agent-browser` is not installed, use the approved Playwright fallback: one frozen script calls `page.screenshot()` against each tree with identical capture settings and inputs. Name the image-comparison tool and any required install in the capture plan too; do not depend on the missing `agent-browser` to compare the images. Playwright does not inherit the allowlist or action gates described in `docs/browser.md`: disclose the target and network scope in the plan and enforce the approved restrictions in the harness or environment.
 
 The pixel diff *is* the counterfactual. An empty diff on a claim that asserts a visual change is the VACUOUS verdict, reached directly.
 

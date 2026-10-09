@@ -1,16 +1,9 @@
 ---
 name: workflow-audit
 description: >-
-  Read an existing `docs/workflows.md` (produced by `/workflow-catalog`) and
-  report unit / integration / end-to-end test coverage per workflow. For each
-  workflow ID, find tests that exercise it via explicit `<!-- tests: ... -->`
-  annotations, embedded `WF-<DOMAIN>-NNN` references, test-name matches against
-  the workflow title, or code-path heuristics tied to the workflow's source
-  files. Classify hits by test layer and write a coverage report (default
-  `docs/workflow-coverage.md`). Use when the user asks to "audit our workflow
-  test coverage", "what workflows aren't tested", "coverage report by
-  workflow", "which workflows have e2e tests", or "find untested user flows".
-  Pairs with `/workflow-catalog`, which produces the input file.
+  Maps an existing workflow catalog to unit, integration, and end-to-end tests
+  by inspecting source, not running tests. Use to audit workflow test coverage,
+  find untested user flows, or identify workflows with e2e tests.
 ---
 
 `/workflow-audit` answers one question per workflow in `docs/workflows.md`: *do tests exist that look like they exercise this workflow, and at what layer?*
@@ -161,11 +154,13 @@ Encode the answers as a quick ad-hoc probe for that run.
 
 ### Step 5 — Link tests to workflows
 
-For each workflow, walk through the linking strategies in this priority order. Stop at the first strategy that yields hits — but record the strategy used, so the report can show *why* a test was linked.
+For each workflow, run all applicable linking strategies across all detected layers. The order ranks evidence strength, not when to stop searching: a pinned unit test must not prevent discovery of integration or e2e tests. Accumulate matches and record the strategy used, then deduplicate as described below.
 
 #### Strategy A — Explicit pin
 
-If the workflow has `<!-- tests: ... -->` pins, every pinned `(file[, test-name])` is a confirmed hit. Layer is whatever the test catalog says for that file. Strategy: `pinned`.
+If the workflow has `<!-- tests: ... -->` pins, verify each file exists and contains tests; for a named pin, verify that test still exists in the current source. A valid pin is a confirmed mapping (not proof that a test passes or meaningfully asserts the workflow). Layer comes from the test catalog. Strategy: `pinned`. A file-only pin is a file-level mapping, not evidence for every test in that file.
+
+Report missing files/tests as stale pins and exclude them from coverage. If a dynamic test name cannot be verified statically, report the pin as unverified and do not count it as confirmed coverage. Continue other strategies even when pins are valid, stale, or unverified. Do not edit pins without user confirmation.
 
 #### Strategy B — ID reference in test file
 
@@ -207,7 +202,7 @@ Per workflow, accumulate `[(layer, test_file, test_name, strategy)]`. Deduplicat
 
 Per workflow, derive a per-layer status:
 
-- **covered** — at least one non-ambiguous hit (strategies A, B, or C-exact) at this layer.
+- **covered** — at least one non-ambiguous hit (validated A, B, or C-exact) at this layer. Stale or unverified pins never qualify.
 - **partial** — only ambiguous hits (substring, URL, import) at this layer.
 - **missing** — no hits at this layer.
 - **unknown** — framework for this layer not detected in the repo (e.g. no Playwright config → e2e layer is "unknown" for the whole project; report this once at the top, not per workflow).
@@ -241,19 +236,19 @@ Report structure:
 ### WF-AUTH-001 — Log in
 
 - **Unit**: covered
-  - `apps/web/auth/login.test.ts` > "validates credentials" (exact-name-match)
+  - `apps/web/auth/login.test.ts` > "Log in" (exact-name-match)
   - `apps/api/tests/test_auth.py::test_login_valid` (id-reference)
-- **Integration**: covered
+- **Integration**: partial
   - `apps/api/tests/integration/test_auth_session.py::test_login_creates_session` (substring-name-match) — ambiguous, please confirm
 - **E2E**: missing
 
 ### WF-AUTH-002 — Sign up
 
 - **Unit**: covered
-  - `apps/web/auth/signup.test.ts` > "rejects existing email" (exact-name-match)
+  - `apps/web/auth/signup.test.ts` > "Sign up" (exact-name-match)
 - **Integration**: missing
-- **E2E**: covered
-  - `e2e/auth.spec.ts` > "user can sign up and log in" (e2e-url-match: goto('/signup'))
+- **E2E**: partial
+  - `e2e/auth.spec.ts` > "user can sign up and log in" (e2e-url-match: goto('/signup')) — ambiguous, please confirm
 
 ### WF-CHECKOUT-001 — Place order
 
@@ -277,7 +272,12 @@ Workflows with missing coverage at the most user-visible layer (e2e if detected,
 These hits are heuristic. Confirm or pin to lock them in (add `<!-- tests: ... -->` to docs/workflows.md):
 
 - WF-AUTH-001 (Integration) — `apps/api/tests/integration/test_auth_session.py::test_login_creates_session` (substring-name-match)
+- WF-AUTH-002 (E2E) — `e2e/auth.spec.ts` > "user can sign up and log in" (e2e-url-match)
 - WF-CHECKOUT-001 (Integration) — `apps/api/tests/test_orders.py::test_create_order_persists` (import-heuristic)
+
+## Stale or unverified pins
+
+<List workflow ID, pinned file/test, and reason validation failed; excluded from confirmed coverage. Write "None" when all pins are valid.>
 ```
 
 After writing, tell the user the path and a one-line summary (e.g. "5 workflows missing e2e coverage; 2 ambiguous matches need confirmation").
@@ -294,7 +294,7 @@ When the user wants to lock in (or reject) ambiguous matches:
    <!-- tests: apps/web/auth/login.test.ts:"validates credentials", apps/api/tests/integration/test_auth_session.py::test_login_creates_session -->
    ```
 
-3. On the next `/workflow-audit` run, Strategy A picks these up directly and the match is no longer ambiguous.
+3. On the next `/workflow-audit` run, Strategy A validates these against the current source; only still-valid pins remove the mapping ambiguity.
 
 Do not edit `docs/workflows.md` without explicit user confirmation — that file is owned by `/workflow-catalog`.
 
@@ -303,7 +303,7 @@ Do not edit `docs/workflows.md` without explicit user confirmation — that file
 - **Best-effort, not authoritative.** This is a discovery tool. Surface what looks like it lines up; let the user confirm. Don't claim "0% coverage" when the linker just couldn't find the connection.
 - **Strict parsing of the input.** If `docs/workflows.md` has a malformed `WF-` line, stop and report. Better to bail than to silently miss workflows.
 - **Read the code, don't guess at file paths.** Before reporting an import-heuristic hit, the test file's import line must actually exist in the test file — grep it; don't infer.
-- **Show the strategy.** Every hit in the report is annotated with how it was linked. The user needs to know the difference between a pin (truth) and an import-heuristic hit (guess).
+- **Show the strategy.** Every hit in the report is annotated with how it was linked. Distinguish validated user-pinned mappings from heuristic guesses; neither proves runtime correctness or passing tests.
 - **Layer classification is by directory and convention.** When in doubt, classify down (an unclear file is integration, not e2e). Better to under-report e2e coverage than over-report it.
 - **Don't run the tests.** This skill scans, it does not execute. If the user wants to run the suite, that's their test command, not this skill.
 - **Plain text only.** No emojis in the report or in interview prompts.

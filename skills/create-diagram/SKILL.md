@@ -1,6 +1,6 @@
 ---
 name: create-diagram
-description: Author and render diagrams in Mermaid, Graphviz, Excalidraw, or TikZ. Picks a format based on intent, writes source plus a rendered SVG, and either uses an externally managed Kroki (via KROKI_HOST_URL) or the bundled docker-compose stack.
+description: Creates editable diagram source and rendered SVGs using Mermaid, Graphviz, Excalidraw, or TikZ. Use when asked to draw or render architecture, flowcharts, sequences, graphs, or technical diagrams.
 ---
 
 # create-diagram
@@ -24,8 +24,12 @@ If the user names a format explicitly, honor it. If they don't, infer from the r
 
 Use the bundled `render.sh` wrapper. It resolves which Kroki to talk to, health-checks it, and POSTs the diagram source to the right endpoint.
 
+Resolve `DIAGRAM_SKILL_DIR` to the absolute directory containing this loaded `SKILL.md`, using the client's supplied skill path. Do not assume the user's project contains `./skills/create-diagram`. A symlink to the complete installed skill directory is supported. Verify `render.sh` and `docker-compose.yml` exist there; if the installation is incomplete, report it instead of guessing another path. Resolve bundled references relative to this directory too.
+
+Keep the shell working directory in the user's project so relative source/output paths resolve there. In each shell invocation, set `DIAGRAM_SKILL_DIR` to the resolved path (or substitute that absolute path directly); do not rely on variables surviving between tool calls.
+
 ```bash
-./skills/create-diagram/render.sh <command> [args...]
+bash "$DIAGRAM_SKILL_DIR/render.sh" <command> [args...]
 ```
 
 | Command | Purpose |
@@ -80,7 +84,7 @@ sequenceDiagram
   A-->>U: JWT
 EOF
 
-./skills/create-diagram/render.sh render mermaid diagrams/auth-flow.mmd diagrams/auth-flow.svg
+bash "$DIAGRAM_SKILL_DIR/render.sh" render mermaid diagrams/auth-flow.mmd diagrams/auth-flow.svg
 ```
 
 ### Graphviz — dependency graph
@@ -97,7 +101,7 @@ digraph services {
 }
 EOF
 
-./skills/create-diagram/render.sh render graphviz diagrams/service-deps.dot diagrams/service-deps.svg
+bash "$DIAGRAM_SKILL_DIR/render.sh" render graphviz diagrams/service-deps.dot diagrams/service-deps.svg
 ```
 
 ### Excalidraw — sketch
@@ -105,7 +109,7 @@ EOF
 Excalidraw source is JSON. Authoring by hand is verbose; for deep authoring, see `references/excalidraw.md` for the JSON wrapper, element templates, and a section-by-section build strategy for large diagrams. Alternatively, have the user draw at excalidraw.com and export `.excalidraw` JSON.
 
 ```bash
-./skills/create-diagram/render.sh render excalidraw diagrams/architecture-sketch.excalidraw diagrams/architecture-sketch.svg
+bash "$DIAGRAM_SKILL_DIR/render.sh" render excalidraw diagrams/architecture-sketch.excalidraw diagrams/architecture-sketch.svg
 ```
 
 **Authoring defaults for modern (non-sketchy) output:**
@@ -149,7 +153,7 @@ cat > diagrams/state-machine.tex <<'EOF'
 \end{document}
 EOF
 
-./skills/create-diagram/render.sh render tikz diagrams/state-machine.tex diagrams/state-machine.svg
+bash "$DIAGRAM_SKILL_DIR/render.sh" render tikz diagrams/state-machine.tex diagrams/state-machine.svg
 ```
 
 ### Editing an existing diagram
@@ -181,7 +185,7 @@ The `internal` network has `internal: true`, meaning containers on it cannot rea
 
 `core` runs with `KROKI_SAFE_MODE=secure`, which disables risky features like remote `!include` directives in PlantUML.
 
-First `start` pulls images (~1 GB total, one-time) and brings everything up. Subsequent renders hit running containers and are fast. Containers keep running across sessions until `./skills/create-diagram/render.sh stop`.
+First `start` pulls images (~1 GB total, one-time) and brings everything up. Subsequent renders hit running containers and are fast. Containers keep running across sessions until `bash "$DIAGRAM_SKILL_DIR/render.sh" stop`.
 
 If port `18473` is already in use, point at a different port via `KROKI_HOST_URL=http://localhost:<port>` (and edit the compose file's port mapping if you still want the bundled stack on that port).
 

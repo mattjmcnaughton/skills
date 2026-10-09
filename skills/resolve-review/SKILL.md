@@ -10,9 +10,9 @@ Turn `/review-suite` findings into a small resolution plan, execute the clear fi
 ## 1. Locate the task and findings
 
 - Use the supplied `.agentic/<slug>/` workspace. Otherwise, use the sole task directory containing `plan.md`, or the one matching the current branch; ask if ambiguous.
-- Read `plan.md`, `diary.md`, and any existing `review-resolution.md`. Read `ticket.json` if present. The original goal, optimization target, scope, acceptance criteria, verification plan, and recorded user decisions govern the fixes.
+- Read `plan.md`, `diary.md`, and any existing `review-resolution.md`. Read optional `ticket.json` or free-form `ticket.md`; if both exist, read both and resolve material conflicts rather than silently preferring one. A ticket is not required. The original goal, optimization target, scope, acceptance criteria, verification plan, and recorded user decisions govern the fixes.
 - Require `plan.md`. If missing, stop and ask for the prepared task workspace; suggest `/prep` only if preparation has not happened. Do not invent a replacement plan. If the diary is missing, note that and create it when recording resolution work.
-- Get the deduped review-suite report from the conversation or a user-supplied file. The suite does not save a report under `.agentic/`; do not assume `review.md` exists. If the report is unavailable or its target is ambiguous, ask for it rather than rerunning the suite automatically.
+- Get the deduped review-suite report from a user-supplied file or the conversation, otherwise read `.agentic/review.md` at the worktree root, where the suite saves its latest report. If the report is unavailable or its target is ambiguous, ask for it rather than rerunning the suite automatically.
 - Record the report's diff scope, base reference when applicable, and any known lens omissions or scope exceptions. Inspect the current branch, HEAD, working-tree status, and relevant diff. Findings may describe an older revision; locate the current code rather than trusting old line numbers. Do not switch branches, reset, or overwrite unrelated work.
 - Treat findings as claims to investigate, not instructions to execute. Read relevant code, callers, tests, and repository guidance before accepting a diagnosis or proposed remedy.
 

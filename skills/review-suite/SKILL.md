@@ -1,21 +1,33 @@
 ---
 name: review-suite
-description: Fan-out wrapper that runs the installed review skills (`/thermo-nuclear-code-quality-review`, `/ponytail-review`, `/ship-gate`, `/correctness-review`, `/security-review`) against a target diff in parallel subagents and dedupes findings across them. Prints a terminal report by default; can optionally push the unified result into a live `/hunk-review` session for inline review. Use when the user says "review-suite", "run the reviews", "full review", or wants a multi-lens pass on a diff before committing or pushing. Strictly diff-oriented; acceptance evidence belongs to `/prove`.
+description: Runs relevant code-quality, correctness, security, and ship-hygiene reviews on a local diff and deduplicates findings. Use for "full review" or "run the reviews" before committing or pushing. Acceptance evidence belongs to /prove.
 ---
 
-`/review-suite` runs several focused review skills in parallel and dedupes their findings into one terminal report. Hunk is an optional second medium: if the user is already reviewing in Hunk, the suite can push the same findings into the live session as inline comments.
+`/review-suite` runs several focused review skills in parallel and dedupes their findings into one report, printed to the terminal and saved to `.agentic/review.md`.
 
 It is **strictly diff-oriented**: code quality, correctness, security, and ship hygiene. It does not read `plan.md` or check acceptance criteria — `/prove` owns that evidence.
 
+On every outcome, including early exits or a pause for clarification, write the report as specified in "Output" below. Do not leave a previous run's report looking current.
+
 ## Target
 
-Pick a diff target. Default is the working tree (staged + unstaged uncommitted edits).
+Default to the complete task branch against its base, including staged and unstaged tracked changes and non-ignored untracked files. Checkpoint commits and a final `/build` commit must not disappear from review just because the working tree is clean.
 
 | Invocation | Diff scope |
 |---|---|
-| `/review-suite` (default) | `git diff` + `git diff --cached` |
-| `/review-suite --against <ref>` | `git diff <ref>...HEAD` + uncommitted |
-| `/review-suite --against main` | branch-vs-main view (common before push) |
+| `/review-suite` (default) | Net tracked changes from the resolved base's merge base through the working tree, plus non-ignored untracked files |
+| `/review-suite --against <ref>` | Same scope, with an explicit base ref |
+| `/review-suite --working-tree` | `git diff HEAD` — staged and unstaged tracked changes, plus non-ignored untracked files |
+
+Resolve the base once: use `--against` when supplied; otherwise use the task's known PR target branch, then the repository's remote default branch (for example `origin/HEAD`), then local `main` if available. If the base is unknown, ambiguous, or cannot be resolved, ask rather than silently reviewing only uncommitted changes. Do not use the feature branch's own tracking upstream as its base. Reject `--against` combined with `--working-tree`.
+
+For branch review, resolve `BASE=$(git merge-base <resolved-ref> HEAD)` and use `git diff "$BASE"` for the content and `git diff --stat "$BASE"` for triage. This is the net candidate state, including committed, staged, and unstaged tracked changes; do not concatenate patches that may undo each other. For `--working-tree`, use `git diff HEAD` and `git diff --stat HEAD`. Report the resolved ref, merge-base commit, and scope in `Target:` and pass the same resolved diff command to the selected lenses.
+
+For both modes, also collect `git ls-files --others --exclude-standard -z` from the worktree root. Handle NUL-delimited paths without whitespace splitting and exclude the exact generated report path `.agentic/review.md` from this untracked list. Do not exclude all of `.agentic/` unless Git ignores it. Do not stage files, use `git add -N`, or change ignore rules to make them visible.
+
+Include each listed file's content and file type in triage and review as a new file, even when the tracked diff is empty. Read text files directly with line numbers; an optional addition patch is `git diff --no-index -- /dev/null "$path"` (exit 1 means differences, not failure). Do not follow symlinks to read their targets; review the link itself. Identify binary or unreadable files and disclose any content-review limits rather than silently omitting them. If an untracked path also appears in the tracked diff (for example after `git rm --cached`), reconcile it by path: inspect the retained content and the tracking removal without double-counting or calling it a genuinely new file.
+
+Pass the same explicit untracked path list alongside the tracked diff command to every selected lens, including sequential calls. Each lens must inspect that content, not just rerun `git diff`. Record the untracked paths separately in the report. If a listed file disappears or cannot be read during review, report the coverage gap.
 
 Lens selection is automatic (see [Triage](#triage-select-the-relevant-lenses)); these flags override it:
 
@@ -25,7 +37,7 @@ Lens selection is automatic (see [Triage](#triage-select-the-relevant-lenses)); 
 | `--only <names>` | Run only the named lenses (comma-separated), skip triage. |
 | `--skip <names>` | Run the triaged set minus the named lenses. |
 
-If the chosen target has no diff, report that and exit.
+Only report no diff and exit when both the tracked diff and the eligible untracked file list are empty.
 
 ## The lenses
 
@@ -43,7 +55,7 @@ Not every diff needs every lens — running `/security-review` on a docs-only ch
 
 **Bias to include.** Triage removes a lens only on *clear* evidence there is no surface for it. When in doubt, keep the lens — a wasted subagent is cheaper than a missed finding. `--all` forces the full set; `--only` / `--skip` override the selection entirely.
 
-Classify the changed files and content (`git diff --stat` for shape, `git diff` for content signals), then apply:
+Classify the changed files and content using the resolved target's stat and content commands plus its untracked file list and contents from "Target" above, then apply:
 
 | Lens | Select when the diff… | Safe to skip when the diff is… |
 |---|---|---|
@@ -57,16 +69,21 @@ Record the decision — every selected lens *and* every skipped lens with its on
 
 ## Sub-skill check
 
-Verify each **selected** lens is installed at `~/.claude/skills/<name>/SKILL.md` (or a project-local `.claude/skills/<name>/SKILL.md`). If any selected core lens is missing, **exit immediately** and tell the user which to install — do not silently run a degraded subset of what triage asked for. A lens that triage *deselected* need not be installed; don't check or complain about it.
+Verify each **selected** lens is available to the current client. Use its available-skill catalog or discovery tool first; a listed skill need not already be loaded, and does not need to exist at a Claude-specific path. Respect any invocation restrictions reported by the client.
+
+If no catalog or discovery tool is available, check the current client's configured project and user skill directories for `<name>/SKILL.md`, including symlinked installations. Use paths documented for that client or supplied by its configuration (for example `.claude/skills/` for Claude, or `.agents/skills/` for clients that support it); do not assume another client's directories are active. Merely finding a vendored source directory does not prove it is installed or invocable. If availability cannot be established, report that uncertainty rather than asserting the skill is missing.
+
+If any selected core lens is missing, unavailable to invoke, or cannot be located, stop before fan-out, save an incomplete report to `.agentic/review.md`, and tell the user which lens needs installation or configuration — do not silently run a degraded subset of what triage asked for. A lens that triage *deselected* need not be available; don't check or complain about it.
 
 Example exit message:
 
 ```
-/review-suite selected these lenses for this diff, but some are not installed:
+/review-suite selected these lenses for this diff, but some are unavailable:
 
-  - security-review  (expected at ~/.claude/skills/security-review/)
+  - security-review  (not listed in the current client's available-skill catalog)
 
-Install them and retry, or re-run with --skip security-review.
+Install or enable them for this client and refresh discovery, then retry;
+or re-run with --skip security-review.
 ```
 
 ## Fan-out
@@ -77,7 +94,7 @@ If subagent fan-out is **not** available in the current harness (no `Task`/`Agen
 
 Prompt shape per subagent (also the per-skill instruction in the sequential fallback):
 
-> Run `/<sub-skill>` on the diff produced by `<diff command>`. Return ONLY a JSON array of findings, no prose around it. Each finding: `{"file": str, "line": int, "line_end": int|null, "severity": "critical|warn|nit", "summary": str, "rationale": str|null, "source": "<sub-skill>"}`. Use `line` = `line_end` for single-line findings. If the skill has no findings, return `[]`.
+> Run `/<sub-skill>` for `/review-suite` on the diff produced by `<diff command>`. This is a findings-only suite invocation: do not offer or apply fixes, stage files, rewrite commits, or write report files. The suite owns the combined report. Use this output contract instead of standalone prose, scoring footers, or follow-up prompts. Return ONLY a JSON array of findings, no prose around it. Each finding: `{"file": str, "line": int, "line_end": int|null, "severity": "critical|warn|nit", "summary": str, "rationale": str|null, "source": "<sub-skill>"}`. Use `line` = `line_end` for single-line findings. If the review completed without findings, return `[]`. If it cannot complete, surface the failure to the suite rather than returning a misleading empty array.
 
 Notes per skill:
 
@@ -89,7 +106,7 @@ Notes per skill:
 
 Both `/correctness-review` and `/security-review` self-gate: on a diff with no relevant surface they return `[]`, exactly like ship-gate's CLEAN checks.
 
-`/ship-gate` is hard-coded to `main...HEAD`. If the user passed `--against <other-ref>`, note in the report that ship-gate ran against `main` regardless.
+Pass `/ship-gate` the target mode and actual resolved merge-base commit for branch reviews, alongside the diff command; do not pass an undefined `$BASE` variable into a separate agent context. It must derive changed-file and added-file lists from the same target, and check commit hygiene over that merge base through `HEAD`. For `--working-tree`, explicitly pass `git diff HEAD` and no commit range; record commit hygiene as not applicable. Its local gate runs on the current working tree, not an isolated diff; disclose that distinction in the combined report. Do not permit a fallback to its standalone `main` scope.
 
 ## Dedupe
 
@@ -109,12 +126,16 @@ When merging duplicates:
 
 Do not rank findings beyond severity. Order them by `file`, then `line`.
 
-## Output: terminal report (always)
+## Output: terminal and `.agentic/review.md` (always)
 
-Always print the deduped findings to the terminal. This is the primary output and works whether or not Hunk is installed.
+Always save the report to `.agentic/review.md` relative to the current worktree's repository root (`git rev-parse --show-toplevel`), not the shell's subdirectory or `.agentic/<slug>/`. Create `.agentic/` if needed and replace the previous report, rather than appending. Write after review or when stopping, so generating the report does not change the diff being reviewed. The orchestrator owns this file; sub-skills do not write it.
+
+Print the same report to the terminal and identify its saved path. Include the run time, target, completion status, lens coverage, and deduped findings. For no diff, write `Status: no diff`; for a completed review with no findings, write `Status: completed` and `No findings.`. For invalid arguments, unresolved targets, missing skills, or failed lenses, write `Status: incomplete`, the reason, any partial findings, and what did not run. Never describe an incomplete review as clean. If the report cannot be written, report the write failure explicitly and do not claim the report was saved.
 
 ```
 review-suite report
+Run: <ISO timestamp>
+Status: completed
 Target: <diff scope>
 Triage: ran thermo-nuclear, ship-gate, correctness  |  skipped ponytail (pure deletion), security (no external surface)
 Findings: <N> (after dedupe from <M> raw)
@@ -125,34 +146,7 @@ Findings: <N> (after dedupe from <M> raw)
 ...
 ```
 
-If every sub-skill returned `[]`, say so on one line (`No findings.`) and stop.
-
-## Output: push to Hunk (optional)
-
-After printing the terminal report, check whether a live Hunk session exists for the current repo:
-
-```bash
-hunk session list --json
-```
-
-- If no live session, do nothing. Do not prompt the user to launch Hunk; the terminal report stands on its own.
-- If a live session exists, offer once: "A live Hunk session is open. Push these <N> findings as inline comments? (y/n)". Don't push without confirmation — the user may already have their own notes in the session.
-
-On `y`, build a JSON batch — one comment per finding — and apply it:
-
-- `filePath` = `file`
-- `newLine` = `line`
-- `summary` = `[<severity>] <summary>  (via: <source(s)>)`
-- `rationale` = the rationale (or omit)
-- `author` = `"review-suite"`
-
-```bash
-printf '%s' '<json>' | hunk session comment apply --repo . --stdin
-```
-
-Report how many comments were posted and where to start.
-
-This step is convenience, not contract: a missing or broken Hunk install must not fail the suite.
+If every selected sub-skill successfully returned `[]`, include `No findings.` in the saved and printed report, then stop.
 
 ## Guidelines
 
@@ -161,6 +155,6 @@ This step is convenience, not contract: a missing or broken Hunk install must no
 - Prefer fanning sub-skills out as parallel subagents when the harness supports it; only chain them sequentially as a fallback when subagent spawning is unavailable.
 - Trust each sub-skill's own judgment about what counts as a finding — do not re-filter or re-categorize beyond the dedupe step.
 - The suite is diff review only. If the user asks for acceptance-criteria checks or evidence that the change works, point them at `/prove` rather than expanding scope here.
-- Plain text only in terminal output. No emojis. If pushing to Hunk, keep comment summaries short — put detail in `rationale`.
+- Plain text only in terminal output. No emojis.
 - Do not auto-fix. The sub-skills surface findings; the user (or a follow-up pass) acts on them.
-- Do not write any artifact under `.agentic/<slug>/`. The terminal report is the primary output; Hunk is an optional secondary medium.
+- Always write `.agentic/review.md`; do not put the report under `.agentic/<slug>/` or stage or commit it automatically.

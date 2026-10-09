@@ -24,7 +24,9 @@ Inspect with the appropriate command (`git diff --cached`, `git diff HEAD~1 HEAD
 
 ## Issue reference (optional)
 
-If `.agentic/<slug>/ticket.json` exists, derive `Closes #N` (features) or `Fixes #N` (bugs) automatically. Otherwise ask the user once; accept "no".
+Read `.agentic/<slug>/ticket.json` or `ticket.md` if present, accepting free-form Markdown without conversion. If both exist, read both and ask about conflicting issue identities before adding a reference. A ticket file is not required: with no usable identifier, omit the footer without requiring a ticket or prompting solely for one. Use an issue reference explicitly supplied by the user even without a file.
+
+For a known GitHub issue, use `Closes #N` (features) or `Fixes #N` (bugs), qualifying cross-repository references. For Linear, Jira, or another tracker, preserve its identifier or URL in a neutral `Refs:` footer unless repository guidance specifies supported integration syntax. Never turn `AGE-4` into GitHub issue `#4` or assume a reference will close an external ticket. Do not invent an identifier from a task slug.
 
 ## Format
 
@@ -33,7 +35,7 @@ If `.agentic/<slug>/ticket.json` exists, derive `Closes #N` (features) or `Fixes
 
 <optional body — bullet points of what & why>
 
-<optional footer: Closes #N / Fixes #N>
+<optional footer: Closes #N / Fixes #N / Refs: identifier or URL>
 ```
 
 Rules:
