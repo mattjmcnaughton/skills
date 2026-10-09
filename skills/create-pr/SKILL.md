@@ -16,7 +16,7 @@ Push the active branch to origin and open a GitHub PR via `gh`. The body is comp
 1. **Branch state.** `git branch --show-current`, `git rev-parse --abbrev-ref HEAD@{upstream}` (might fail if not pushed yet — that's expected).
 2. **Diff scope.** Commits and files in `git log <base>..HEAD` and `git diff <base>...HEAD`.
 3. **Plan + diary.** Read `.agentic/<slug>/plan.md` and `diary.md`. These drive the PR body.
-4. **Ticket.** If `.agentic/<slug>/ticket.json` exists, capture the identifier for `Closes #N` / `Fixes #N`.
+4. **Ticket (optional).** Read `.agentic/<slug>/ticket.json` or `ticket.md` if present; accept free-form Markdown without conversion. If both exist, read both and ask about conflicting issue identities before adding a reference. With neither file or no usable identifier, omit the issue footer without requiring a ticket. An issue explicitly supplied by the user also works without a file. Use `Closes #N` / `Fixes #N` only for a known GitHub issue, qualifying cross-repository references. For Linear, Jira, or another tracker, preserve the identifier or URL in a neutral `Refs:` footer unless repository guidance specifies supported integration syntax. Do not assume this closes an external ticket or turn its identifier into a GitHub number. Never infer an issue from the task slug.
 
 ## Build the PR
 
@@ -43,7 +43,7 @@ Push the active branch to origin and open a GitHub PR via `gh`. The body is comp
 <diary's "Issues/Deviations" lines, if any — surface them so the reviewer isn't surprised>
 
 <footer>
-Closes #<N>     <-- only if ticket.json had a Linear/GitHub identifier
+<optional issue reference from ticket.json, ticket.md, or the user; omit if none>
 ```
 
 Do **not** include AI attribution or `Generated with` trailers unless the user explicitly asks for them.

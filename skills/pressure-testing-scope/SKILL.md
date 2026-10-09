@@ -1,15 +1,9 @@
 ---
 name: pressure-testing-scope
 description: >-
-  Pressure-tests PRDs, technical design documents, and implementation plans to
-  identify scope that should be kept, cut, deferred, or justified with
-  evidence. Produces the minimum coherent scope while preserving the stated
-  outcome and essential product, operational, security, migration, and
-  compliance constraints. Use before implementation when reviewing proposed
-  features, architecture, rollout work, or roadmap commitments. Triggers
-  include "pressure-test the scope", "pressure test this PRD", "cut scope",
-  "what can we defer", "is this over-scoped", and "find the minimum coherent
-  scope".
+  Pressure-tests a PRD, design, or implementation plan to keep, cut, defer,
+  or justify scope while preserving essential outcomes and constraints.
+  Use before implementation for "cut scope", "what can we defer", or "is this over-scoped".
 ---
 
 `/pressure-testing-scope` audits a proposed body of work before implementation. It asks one question of every commitment in the document:

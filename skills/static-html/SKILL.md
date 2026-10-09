@@ -1,6 +1,6 @@
 ---
 name: static-html
-description: Creates polished, self-contained single-page HTML files with embedded JavaScript, CSS, and assets. Uses React for interactivity and compiled Tailwind for styling. Use for shareable offline pages, interactive briefs, calculators, reports, and small dashboards that open directly in a browser without a server or installation.
+description: Creates polished, self-contained HTML files with embedded code and assets. Use for shareable offline pages, interactive briefs, calculators, reports, or small dashboards that open in a browser without a server or installation.
 ---
 
 # static-html

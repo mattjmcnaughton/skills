@@ -1,11 +1,15 @@
 ---
 name: ship-gate
-description: Fast pre-ship checklist on the current branch's diff against `main`. Runs nine mechanical checks (secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit-message hygiene, local gate, new data sinks, unpinned dependencies) and offers auto-fixes. Use before `/create-pr` (pre-push) and before `/merge-pr` (pre-merge), or whenever the user says "ship gate", "before pushing", "before merging", "pre-push check", "pre-merge check", or "risk check before pr". Not a substitute for `/review` or `/review-pr`.
+description: Checks a branch diff for secrets, debug residue, unwanted files, dependency risks, and other mechanical ship hazards. Use for pre-push, pre-merge, or "ship gate" checks. Offers fixes; not a substitute for code review.
 ---
 
 `/ship-gate` is a downside-risk filter, not a code review. It runs a small set of cheap mechanical checks on the current branch's diff against `main` and reports anything that would be high-regret to ship. The intent is the kind of 60-second scan a human would do before pushing or merging.
 
-For deeper coverage — design, correctness, test gaps — use `/review` (pre-commit, local) or `/review-pr` (open PR). `/ship-gate` is complementary and deliberately narrow.
+For deeper coverage — design, correctness, test gaps — use `/review-suite` (local diff review) or `/review-pr` (open PR). `/ship-gate` is complementary and deliberately narrow.
+
+## When called by review-suite
+
+When `/review-suite` invokes this skill, return only the JSON findings array in the schema it supplies, using its severity mapping. This overrides the standalone report format and the entire auto-fix follow-up below. Return `[]` only when the checks completed without findings; surface an inability to complete checks to the suite rather than claiming a clean result. Do not offer or apply fixes, stage files, rewrite commits, or write a report file; the suite owns the combined report. Standalone invocations retain the behavior below.
 
 ## When to use
 
@@ -15,11 +19,28 @@ For deeper coverage — design, correctness, test gaps — use `/review` (pre-co
 
 ## When not to use
 
-- As a replacement for `/review` or `/review-pr` — this skill makes no judgment calls about design or correctness.
+- As a replacement for `/review-suite` or `/review-pr` — this skill makes no judgment calls about design or correctness.
 - As a security audit — the secret-detection is heuristic only. Layer a real scanner (gitleaks, trufflehog) in CI for that.
-- On a branch with no diff against `main`.
+- When the selected target has no diff (standalone: against `main` plus uncommitted edits).
 
 ## Scope
+
+### Suite invocation
+
+Use the exact target supplied by `/review-suite`; do not resolve a new base or fall back to `main`.
+
+| Suite target | Content | Changed files / added files | Commit hygiene |
+|---|---|---|---|
+| Branch, resolved merge-base `BASE` | `git diff "$BASE"` | `git diff --name-only "$BASE"` / `git diff --name-only --diff-filter=A "$BASE"` | `git log "$BASE"..HEAD --pretty='%h %s'` |
+| Working tree only | `git diff HEAD` | `git diff --name-only HEAD` / `git diff --name-only --diff-filter=A HEAD` | Not applicable: no commits in scope |
+
+The table covers tracked changes. Also inspect the suite's supplied non-ignored untracked file list and contents for every applicable check, including secrets, garbage, debug residue, and dependencies. Include these paths in changed-file coverage and treat genuinely new files as additions; reconcile any overlap with tracked changes by path. An empty tracked diff is not a reason to skip them. Follow the suite's file-type handling and report exclusion; never stage files or change ignore rules for discovery.
+
+These commands override **every** hard-coded `main...HEAD` diff and `main..HEAD` log example below. Feed the selected content diff into the illustrated filters. For branch reviews, use the single net diff through the working tree; do not append staged/unstaged patches that can reintroduce reverted changes. For working-tree-only reviews, skip commit-message hygiene rather than checking unrelated commits. If the supplied target is missing or fails to resolve, report an incomplete check to the suite, not a fallback review.
+
+Content checks cover only the selected diff. The local gate still runs against the current working tree; its result is not isolated evidence for the selected diff. Report this distinction to the suite.
+
+### Standalone invocation (unchanged default)
 
 - Content diff: `git diff main...HEAD` plus any uncommitted edits (`git diff` and `git diff --cached`).
 - Commit subjects: `git log main..HEAD --pretty=%s` (and SHAs via `--pretty=%h %s` for citations).
@@ -257,4 +278,4 @@ Rules:
 - Documentation and test fixtures legitimately contain example patterns (regexes, fake tokens, sample paths). When a hit lives in `*.md`, `docs/`, `tests/`, `__tests__/`, or `fixtures/`, downgrade FAIL to WARN and say so in the report — the user can confirm intent in one glance instead of fighting the gate.
 - Don't auto-chain into `/create-pr` or `/merge-pr`. The user runs those themselves.
 - Don't read or write `.agentic/<slug>/`. This skill is standalone.
-- Point users at `/review`, `/review-pr`, and CI scanners for anything deeper than mechanical checks.
+- Point users at `/review-suite`, `/review-pr`, and CI scanners for anything deeper than mechanical checks.

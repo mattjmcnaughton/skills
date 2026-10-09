@@ -1,12 +1,9 @@
 ---
 name: kaizen
 description: >-
-  Reviews a project's agent chat logs over a confirmed time range and recommends
-  improvements to the repo and agentic coding skills. Starts by confirming the
-  accessible sessions with the user. Prefers agent-logs-extractor and dynamically
-  falls back to accessible Claude Code, Codex, Pi, Amp, or other native sources.
-  Use for project retrospectives, recurring agent friction, or requests to
-  improve the coding workflow based on past conversations.
+  Reviews confirmed project chat sessions and recommends repo or skill
+  improvements without applying them. Use for agent-workflow retrospectives,
+  recurring friction, or lessons from past coding conversations.
 ---
 
 # Kaizen

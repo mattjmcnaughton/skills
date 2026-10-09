@@ -5,6 +5,8 @@ description: Reload context for an interrupted coding task from `.agentic/<slug>
 
 `/rehydrate` is the resume hook. It reads the plan and diary, summarizes where the task stands, and gets the agent and user back in sync so `/build` can pick up at the next incomplete step.
 
+It restores context without implementing steps or changing the diary. `/build` can also resume directly; use `/rehydrate` when a context-restoration pass is useful.
+
 ## Locate the workspace
 
 If the worktree has one `.agentic/<slug>/`, use it. Multiple: pick the one matching the current git branch; else ask. None: there's nothing to resume — suggest `/create-worktree` + `/prep`.
@@ -14,7 +16,7 @@ If the worktree has one `.agentic/<slug>/`, use it. Multiple: pick the one match
 Read in order:
 1. `plan.md` — the contract (goal, acceptance, verification, steps).
 2. `diary.md` — the history (what was done, when, what mode).
-3. `ticket.json` if present — issue context.
+3. `ticket.json` or `ticket.md` if present — optional issue context. Accept free-form Markdown without conversion; if both exist, read both and surface material conflicts. With neither, continue from the plan and diary.
 4. `git log --oneline <branch-base>..HEAD` — actual commit trail.
 5. `git status` and `git diff` — uncommitted state.
 
@@ -59,9 +61,9 @@ Surface any reconciliation problems explicitly:
 ## Edge cases
 
 - **No diary.md**: nothing to rehydrate. Suggest `/build` to start fresh.
-- **All steps completed in diary**: suggest `/review-suite`.
-- **User wants to restart a step**: honor "redo step N" and reset the diary's current-step pointer.
-- **User wants to skip ahead**: honor "skip to step M" but warn if prerequisite steps look incomplete.
+- **All steps completed in diary**: suggest `/review-suite` if final commit handling is recorded as complete; otherwise suggest `/build` to finish or reconcile that handling without repeating implementation.
+- **User wants to restart a step**: include "redo step N" in the handoff to `/build`, which updates the pointer while preserving prior diary history.
+- **User wants to skip ahead**: include "skip to step M" in the handoff to `/build`, but warn if prerequisite steps look incomplete.
 
 ## Guidelines
 

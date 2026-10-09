@@ -26,10 +26,14 @@ The user usually provides one of:
 
 ```bash
 git -C <path> status --porcelain
-git -C <path> log @{u}.. 2>/dev/null
+git -C <path> log '@{u}..'
 ```
 
-If either is non-empty, stop and surface what's there. The user must commit/push/stash or explicitly say "delete anyway" before proceeding.
+Check each command's exit status as well as its output; keep errors visible. Only successful checks with empty output establish that no uncommitted or unpushed work was found relative to the locally recorded upstream.
+
+If either command fails (including a missing upstream), stop and report that the corresponding safety check could not be completed. Empty output from a failed command is not a clean result. The user must resolve the failure and rerun the checks, or explicitly say "delete anyway" after being told what remains unknown. The routine confirmation in step 3 does not override a failed check.
+
+If either successful check is non-empty, stop and surface what's there. The user must commit/push/stash as appropriate and rerun the checks, or explicitly say "delete anyway" before proceeding.
 
 ### 3. Confirm
 
@@ -62,7 +66,7 @@ git branch -d <branch>
 ```
 If `-d` rejects an "unmerged" branch (common after a rebase-merge upstream — the local SHA no longer matches), warn the user and ask before falling back to `-D`.
 
-Note: if the user already ran `/merge-pr`, the local branch is usually already gone — `gh pr merge --delete-branch` deletes it when the checkout was on the PR branch with no unpushed work. In that case `git branch -d` will return `branch '<branch>' not found`; treat that as success and move on.
+`/merge-pr` deliberately leaves local branches and worktrees unchanged; this skill owns their cleanup. If the resolved branch is already absent (for example after manual cleanup), verify that absence and report "already absent" rather than claiming to have deleted it. Do not treat other deletion failures as success.
 
 ### 7. Report
 
@@ -77,6 +81,6 @@ Deleted branch:   <branch>
 
 - Never delete the main worktree or the currently-checked-out branch of the main repo.
 - Never `--force` (worktree) or `-D` (branch) without explicit confirmation.
-- Don't touch the remote branch — `/merge-pr` already handled that with `--delete-branch`.
+- Don't touch the remote branch — remote cleanup belongs to `/merge-pr` or a separate authorized action. Do not assume it was deleted.
 - Don't touch linked Linear/GitHub issues — out of scope here.
 - Plain text only.

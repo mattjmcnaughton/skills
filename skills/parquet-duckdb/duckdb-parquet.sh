@@ -37,6 +37,15 @@ $sql
     : "${MINIO_SECRET_ACCESS_KEY:?MINIO_SECRET_ACCESS_KEY must be set}"
     : "${MINIO_ENDPOINT:?MINIO_ENDPOINT must be set}"
 
+    use_ssl="${MINIO_USE_SSL-true}"
+    case "$use_ssl" in
+      true|false) ;;
+      *)
+        echo "MINIO_USE_SSL must be true or false" >&2
+        exit 1
+        ;;
+    esac
+
     AWS_ACCESS_KEY_ID="$MINIO_ACCESS_KEY_ID" \
     AWS_SECRET_ACCESS_KEY="$MINIO_SECRET_ACCESS_KEY" \
     duckdb -c "
@@ -47,7 +56,7 @@ CREATE OR REPLACE SECRET s3_secret (
     CHAIN 'env',
     ENDPOINT '$MINIO_ENDPOINT',
     URL_STYLE 'path',
-    USE_SSL false
+    USE_SSL $use_ssl
 );
 $sql
 "

@@ -1,6 +1,6 @@
 ---
 name: prep
-description: Interview the user and produce `.agentic/<slug>/plan.md` defining goal, optimization target, acceptance criteria, verification plan, research, environment readiness, and implementation approach. Use after /create-worktree and before /build.
+description: Interviews the user and researches the codebase to write an implementation plan with acceptance criteria and verification steps. Use to plan a coding task after /create-worktree and before /build.
 ---
 
 `/prep` is one conversation that produces one artifact: `.agentic/<slug>/plan.md`. It interviews the user, probes the codebase, verifies the environment is ready for autonomous execution, and writes everything `/build` will need.
@@ -11,11 +11,11 @@ If the current directory contains exactly one `.agentic/<slug>/` dir, use it. If
 
 ## Read ticket context first
 
-If `.agentic/<slug>/ticket.json` exists, read it. Use it to seed the goal, acceptance, and out-of-scope sections — but treat it as a starting point, not the final word.
+Read `.agentic/<slug>/ticket.json` or `ticket.md` if present. JSON metadata and free-form Markdown are both supported; do not require conversion or a fixed Markdown schema. If both exist, read both and ask about material conflicts rather than silently choosing one. Use ticket context to seed the goal, acceptance, and out-of-scope sections — but treat it as a starting point, not the final word. With neither file, proceed from the user's request and interview; do not require or create a ticket.
 
 ## The interview
 
-Conduct a conversational interview to fill the sections below. Build on the user's answers; don't run through a flat script. Pull from `ticket.json` and codebase exploration to make questions specific.
+Conduct a conversational interview to fill the sections below. Build on the user's answers; don't run through a flat script. Pull from available ticket context and codebase exploration to make questions specific.
 
 May fan out to Explore sub-agents in parallel when research spans multiple domains or a subsystem needs deep reading. Use them to find implementation templates (existing features that solve analogous problems) and test fixtures.
 
@@ -26,7 +26,7 @@ At three points in this flow, offer to run a grilling skill. Pick which one by c
 - If `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` exists → offer `/grill-with-docs`.
 - Otherwise → offer `/grill-me`.
 
-If neither skill is loaded in the current session, skip the offer silently — don't mention it.
+If the selected grilling skill is available to invoke, offer it even if it has not been loaded yet. Load and run it only after the user accepts. If unavailable, skip the offer silently.
 
 The three offer points:
 

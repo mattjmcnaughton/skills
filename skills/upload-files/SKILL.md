@@ -1,6 +1,6 @@
 ---
 name: upload-files
-description: Launches a temporary Python drag-and-drop upload server on all interfaces on a random port, saving files in .agentic/uploads within the current working directory. Use only when the user directly invokes upload-files; never select it automatically for a file-transfer request.
+description: Starts a temporary drag-and-drop upload server on all interfaces, saving files in .agentic/uploads. Use only on direct invocation of upload-files; never select it automatically for a general file-transfer request.
 disable-model-invocation: true
 ---
 

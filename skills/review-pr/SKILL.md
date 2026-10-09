@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Review an open GitHub PR (yours or someone else's). Fetches the PR via `gh`, examines the diff with configurable depth, and posts review comments. Distinct from /review, which is local pre-commit self-review.
+description: Reviews an open GitHub pull request by URL or number, checks its diff and CI, and optionally posts findings. Use to review your own or someone else's PR; use /review-suite for local, unsubmitted changes.
 ---
 
 Review a GitHub PR by URL or number, examine the diff, and produce findings. Optionally post the review back to GitHub via `gh`. Adapts depth based on review mode.

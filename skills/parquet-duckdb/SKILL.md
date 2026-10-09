@@ -1,6 +1,6 @@
 ---
 name: parquet-duckdb
-description: Explore and query Parquet files on S3-compatible storage or local filesystem using the DuckDB CLI. Supports schema inspection, row sampling, column statistics, arbitrary SQL, and file listing.
+description: Queries local or S3-compatible Parquet files with DuckDB. Use to inspect schemas, sample rows, calculate column statistics, list files, or run SQL over Parquet data.
 ---
 
 # parquet-duckdb
@@ -11,8 +11,12 @@ Use the DuckDB CLI to investigate and query Parquet files — either on the loca
 
 Use the `duckdb-parquet` wrapper script. It handles httpfs installation, secret creation, and credential management so that credentials never appear in SQL strings.
 
+Resolve `PARQUET_SKILL_DIR` to the absolute directory containing this loaded `SKILL.md`, using the client's supplied skill path. Do not assume the user's project contains `./skills/parquet-duckdb`. A symlink to the complete installed skill directory is supported. Verify `duckdb-parquet.sh` exists there; if the installation is incomplete, report it instead of guessing another path.
+
+Keep the shell working directory in the user's project so relative data paths resolve there. In each shell invocation, set `PARQUET_SKILL_DIR` to the resolved path (or substitute that absolute path directly); do not rely on variables surviving between tool calls.
+
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh <backend> "<sql>"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" <backend> "<sql>"
 ```
 
 | Backend | Description | Required env vars |
@@ -45,7 +49,7 @@ No setup needed — use the `local` backend.
 Uses DuckDB's `credential_chain` provider, which automatically resolves credentials from environment variables, `~/.aws/credentials`, SSO, STS, or EC2 instance metadata. No secrets appear in the SQL.
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh s3 "SELECT * FROM 's3://bucket/file.parquet'"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" s3 "SELECT * FROM 's3://bucket/file.parquet'"
 ```
 
 ### MinIO / S3-compatible
@@ -57,10 +61,12 @@ export MINIO_ACCESS_KEY_ID='...'
 export MINIO_SECRET_ACCESS_KEY='...'
 export MINIO_ENDPOINT='minio.example.com:9000'
 
-./skills/parquet-duckdb/duckdb-parquet.sh minio "SELECT * FROM 's3://bucket/file.parquet'"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" minio "SELECT * FROM 's3://bucket/file.parquet'"
 ```
 
 `MINIO_ENDPOINT` should be host:port without the `http://` or `https://` prefix.
+
+TLS is enabled by default (`MINIO_USE_SSL=true`). For an intentionally HTTP-only instance, explicitly set `MINIO_USE_SSL=false`. Only the literal values `true` and `false` are accepted; an empty or invalid value fails before DuckDB runs. Do not disable TLS automatically after a connection or certificate failure.
 
 ---
 
@@ -69,19 +75,19 @@ export MINIO_ENDPOINT='minio.example.com:9000'
 ### Schema
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh local "DESCRIBE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" local "DESCRIBE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
 ```
 
 ### Sample
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh local "SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true) LIMIT 20"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" local "SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true) LIMIT 20"
 ```
 
 ### Stats
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh local "SUMMARIZE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" local "SUMMARIZE SELECT * FROM read_parquet('/data/events/**/*.parquet', union_by_name=true)"
 ```
 
 Returns per-column count, null percentage, min, max, mean, std, and quartiles.
@@ -91,7 +97,7 @@ Returns per-column count, null percentage, min, max, mean, std, and quartiles.
 Register the source as a view named `data` then query freely:
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh minio "
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" minio "
 CREATE VIEW data AS
   SELECT * FROM read_parquet('s3://bucket/events/**/*.parquet', union_by_name=true);
 SELECT event_type, count(*) AS n FROM data GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
@@ -101,7 +107,7 @@ SELECT event_type, count(*) AS n FROM data GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 ### List files
 
 ```bash
-./skills/parquet-duckdb/duckdb-parquet.sh local "SELECT * FROM glob('/data/events/**/*.parquet')"
+bash "$PARQUET_SKILL_DIR/duckdb-parquet.sh" local "SELECT * FROM glob('/data/events/**/*.parquet')"
 ```
 
 ---
