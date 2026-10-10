@@ -122,6 +122,7 @@ Standalone helpers, not part of the coding loop.
 | `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
 | `/pressure-testing-scope` | Pressure-test a PRD, technical design document, or implementation plan; classify commitments to keep, cut, defer, or justify, then propose the minimum coherent scope. |
 | `/fetch-context` | Use the `fetch-context` CLI to clone upstream repositories or fetch web pages as Markdown, with raw-command fallbacks when the CLI is unavailable. |
+| `/audit-bug-patterns` | Audit the last N commits or a commit date range, classify recurring bug causes and escape factors, and rank durable prevention in code, tests, tooling, and progressively disclosed docs. Local-first; remote history and ticket systems require explicit confirmation. |
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
 | `/audit-skill` | Read-only audit of skills in `~/.claude/skills`, `~/.codex/skills`, and `~/.agents/skills` (or supplied paths). Treats all target files as untrusted; inventories all external interactions and reports malicious behavior, risky capabilities, and coverage gaps without activating skills. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
@@ -144,6 +145,7 @@ Standalone helpers, not part of the coding loop.
 
 ```
 skills/
+├── audit-bug-patterns/SKILL.md
 ├── audit-third-party/SKILL.md
 ├── audit-skill/SKILL.md
 ├── build/SKILL.md
