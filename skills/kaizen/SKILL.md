@@ -1,9 +1,11 @@
 ---
 name: kaizen
+disable-model-invocation: true
 description: >-
   Reviews confirmed project chat sessions and recommends repo or skill
-  improvements without applying them. Use for agent-workflow retrospectives,
-  recurring friction, or lessons from past coding conversations.
+  improvements without applying them. User-invoked only. Requires consent to
+  specific log sources and model-provider disclosure before any scan, then
+  confirmation of sessions before analysis.
 ---
 
 # Kaizen
@@ -11,9 +13,46 @@ description: >-
 Turn confirmed project conversations into a short, evidence-backed list of repo
 and agentic coding skill improvements. Recommend changes; do not apply them.
 
+## 0. Require user invocation and consent before accessing logs
+
+Run only when the user explicitly invokes `/kaizen` (or `$kaizen` in Codex).
+Do not auto-select this skill, invoke it from another skill, or accept an agent's
+delegation as user authorization. Invocation alone is not consent to read logs.
+
+Before any log scan, session listing, metadata query, extraction, or content read:
+
+- Establish the project, time range, and timezone with the user. You may inspect
+  repo identity, CLI help, and documentation, but not log stores or exports yet.
+- Tell the user exactly which sources you propose to access: agent/vendor,
+  concrete log paths or narrowly scoped path patterns, export files/tables, or
+  remote session source/account and project filters. Name the data to be read
+  (including metadata, prompts, responses, and tool output) and the access method.
+  Do not use a vague label such as "your agent logs." If locations are unknown,
+  ask the user to supply them or approve a specific discovery scope first; do not
+  scan to find out what to ask permission for.
+- Explain that data returned to the agent enters its model context and is sent
+  to Claude/Anthropic when using Claude. For Codex or another host, name the
+  actual model/provider instead; if unknown, disclose that uncertainty and ask
+  the user to verify the destination before proceeding. Logs may contain private
+  code, credentials, personal information, and other sensitive content. Redacting
+  the final report does not undo disclosure of data already read by the model.
+- Ask explicitly: "Please double-check the log sources and data listed above.
+  Are you comfortable with this information being sent to Claude/Anthropic
+  for this review, and do you authorize this scan?" Substitute the actual
+  model/provider when different. Offer to narrow the scope or use a user-redacted
+  export instead.
+
+**Stop and wait for explicit user approval.** Silence, invoking the skill,
+previous reviews, and agent approval do not count. If declined, do not scan.
+Stay within the approved sources, data, project, and interval. Before accessing
+any additional source (including an extractor's native fallback), broadening
+scope, or changing the receiving provider, disclose the change and obtain fresh
+approval. A discovery-only approval permits only the agreed discovery; obtain
+consent for the resulting specific log sources before reading their contents.
+
 ## 1. Establish scope and discover accessible sessions
 
-The first deliverable is a session inventory, not recommendations.
+After the pre-scan consent gate, produce a session inventory, not recommendations.
 
 - Default to the current repo. Establish its identity from its root and remote,
   without displaying credentials embedded in remote URLs. Account for worktrees
@@ -152,6 +191,8 @@ repo automatically.
 
 `/kaizen for this repo from September 1 through September 14, 2026, America/New_York`
 
-Resolve this to `[2026-09-01 00:00, 2026-09-15 00:00)` in that timezone. Discover
-sessions with activity in the interval, show readable and unavailable sources,
-and wait for session confirmation before producing either recommendation list.
+Resolve this to `[2026-09-01 00:00, 2026-09-15 00:00)` in that timezone. Disclose
+the specific proposed log sources and receiving model/provider, then wait for
+explicit pre-scan consent. Only then discover sessions with activity in the
+interval, show readable and unavailable sources, and wait for session
+confirmation before producing either recommendation list.
