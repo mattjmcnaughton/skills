@@ -115,6 +115,7 @@ Standalone helpers, not part of the coding loop.
 
 | Skill | Role |
 |---|---|
+| `/walk-decisions` | Walk through supplied decisions one at a time (or in requested chunks), recommend an option for each, and recap the user's choices. |
 | `/static-html` | Create a polished, self-contained HTML page with embedded React, compiled Tailwind CSS, and assets; works offline when opened directly in a browser. |
 | `/kaizen` | Confirm accessible project chat sessions over a time range, then recommend evidence-backed repo and agentic coding skill improvements. Prefers `agent-logs-extractor` with native-source fallbacks. |
 | `/update-docs` | Audit the repo's docs against current code; propose edits and apply them after approval. Optional step after `/review-suite`. |
@@ -179,6 +180,7 @@ skills/
 │   ├── SKILL.md
 │   └── scripts/server.py
 ├── vendor/                     # Ten upstream skills with licenses and UPSTREAM.md
+├── walk-decisions/SKILL.md
 ├── workflow-audit/SKILL.md
 └── workflow-catalog/SKILL.md
 README.md
