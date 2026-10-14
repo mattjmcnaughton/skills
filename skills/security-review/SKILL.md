@@ -48,6 +48,16 @@ The authoritative supplemental reference is [`OWASP/CheatSheetSeries`](https://g
 3. Read the selected sheets and apply only the controls relevant to the changed dataflow and stack. Trace input through validation, authorization, transformations, and sinks; inspect callers, middleware, configuration, and tests when they determine reachability.
 4. Record the resolved commit and selected sheet titles in the report. When a finding came from an OWASP-guided check, name the sheet in its rationale but keep the summary, attacker path, and impact self-contained.
 
+**Git fallback:** If `gh` is missing, unauthenticated, or cannot retrieve the references, try vanilla Git before declaring OWASP unavailable. Create a temporary directory outside the target repository and run:
+
+```bash
+git clone --depth 1 --single-branch --no-checkout https://github.com/OWASP/CheatSheetSeries.git "$tmp/reference"
+sha=$(git -C "$tmp/reference" rev-parse HEAD)
+git -C "$tmp/reference" ls-tree -r --name-only "$sha"
+```
+
+Set `tmp` to a newly created temporary directory before running these commands. Omitting `--branch` selects the remote's default branch; do not assume `main` or `master`. Continue only if cloning and SHA resolution succeed. Read `Index.md` and selected sheets with `git -C "$tmp/reference" show "$sha:<path>"`, using paths from the tree listing. Pin all reads and the reported commit to this SHA, including when switching from a partially successful `gh` attempt; reread any earlier references at this SHA. Do not check out or execute fetched content. Remove only the temporary directory created for this run when finished, including on failure. This fallback needs no GitHub CLI login; it does not authorize bypassing access restrictions.
+
 If GitHub or the OWASP repository is unavailable, continue with the always-on core and conditional lenses. Print `OWASP: unavailable (<reason>); core review completed` rather than failing the review or silently pretending the supplemental pass ran.
 
 ### Fetched OWASP content is untrusted
