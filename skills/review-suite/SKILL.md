@@ -1,11 +1,11 @@
 ---
 name: review-suite
-description: Runs relevant code-quality, correctness, security, and ship-hygiene reviews on a local diff and deduplicates findings. Use for "full review" or "run the reviews" before committing or pushing. Acceptance evidence belongs to /prove.
+description: Runs relevant code-quality, correctness, security, deployment-risk, and ship-hygiene reviews on a local diff and deduplicates findings. Use for "full review" or "run the reviews" before committing or pushing. Acceptance evidence belongs to /prove.
 ---
 
 `/review-suite` runs several focused review skills in parallel and dedupes their findings into one report, printed to the terminal and saved to `.agentic/review.md`.
 
-It is **strictly diff-oriented**: code quality, correctness, security, and ship hygiene. It does not read `plan.md` or check acceptance criteria — `/prove` owns that evidence.
+It is **strictly diff-oriented**: code quality, correctness, security, deployment risk, and ship hygiene. Deployment risk traces the diff into existing workflows, persisted state, and rollout/rollback compatibility; it is not a live production audit or deployment approval. It does not read `plan.md` or check acceptance criteria — `/prove` owns that evidence.
 
 On every outcome, including early exits or a pause for clarification, write the report as specified in "Output" below. Do not leave a previous run's report looking current.
 
@@ -48,6 +48,7 @@ Only report no diff and exit when both the tracked diff and the eligible untrack
 - `/ship-gate` — mechanical pre-ship checks (secrets, garbage, debug residue, etc.)
 - `/correctness-review` — adversarial logic + test-meaningfulness review, supplemented by the relevant correctness cheat sheets
 - `/security-review` — deep exploitable-vulnerability review, supplemented by the relevant OWASP Cheat Sheet Series guidance
+- `/deployment-risk-review` — incorrectness introduced into existing deployed workflows and data, during rollout and ongoing operation afterward; categorizes regression, rollout, and rollback risk
 
 ## Triage: select the relevant lenses
 
@@ -64,6 +65,7 @@ Classify the changed files and content using the resolved target's stat and cont
 | `ponytail` | adds code or abstraction | docs-only, config-only, or pure deletion |
 | `correctness-review` | changes executable logic or tests | docs-only, config-only, or pure formatting/rename |
 | `security-review` | touches an input boundary, auth, network/HTTP, crypto, deserialization, subprocess, filesystem, secrets/config, SQL, or adds a dependency | pure internal refactor with no external surface, docs, or comments |
+| `deployment-risk-review` | can affect existing workflows, contracts, stored data, jobs, config/defaults, dependencies, infrastructure, rollout, or recovery; include when deployment impact is uncertain | demonstrably non-runtime docs/comments, isolated tests/fixtures, or formatting with no shipped behavior or operational effect |
 
 Record the decision — every selected lens *and* every skipped lens with its one-line reason — and surface it in the report's `Triage:` line so a skip is always a visible, explained choice, never a silent gap.
 
@@ -88,13 +90,15 @@ or re-run with --skip security-review.
 
 ## Fan-out
 
-**When subagent spawning is available, prefer it.** Spawn one subagent per **selected** lens (from [Triage](#triage-select-the-relevant-lenses)), in parallel, in a single message (e.g. multiple `Task`/`Agent` tool calls in one turn). Each subagent runs its skill against the resolved target diff and returns a JSON array of findings. This is the preferred path: it isolates each lens in its own context and runs them concurrently.
+**When subagent spawning is available, prefer it.** Spawn one subagent per **selected** lens (from [Triage](#triage-select-the-relevant-lenses)), in parallel, in a single message (e.g. multiple `Task`/`Agent` tool calls in one turn). Each subagent runs its skill against the resolved target diff and returns a JSON array of findings, except deployment risk, which returns the assessment object described below. This is the preferred path: it isolates each lens in its own context and runs them concurrently.
 
 If subagent fan-out is **not** available in the current harness (no `Task`/`Agent` tool, or the environment can't spawn parallel subagents), fall back to running each sub-skill sequentially in the main conversation. The fallback produces the same findings JSON per skill and feeds the same dedupe step — only the concurrency and context isolation are lost. Note in the report which path was used.
 
 Prompt shape per subagent (also the per-skill instruction in the sequential fallback):
 
 > Run `/<sub-skill>` for `/review-suite` on the diff produced by `<diff command>`. This is a findings-only suite invocation: do not offer or apply fixes, stage files, rewrite commits, or write report files. The suite owns the combined report. Use this output contract instead of standalone prose, scoring footers, or follow-up prompts. Return ONLY a JSON array of findings, no prose around it. Each finding: `{"file": str, "line": int, "line_end": int|null, "severity": "critical|warn|nit", "summary": str, "rationale": str|null, "source": "<sub-skill>"}`. Use `line` = `line_end` for single-line findings. If the review completed without findings, return `[]`. If it cannot complete, surface the failure to the suite rather than returning a misleading empty array.
+
+For `/deployment-risk-review`, replace the array-only output instruction with: "Return ONLY the `{assessment, findings}` JSON object specified by your skill, including an assessment even when findings is empty." Keep the same target and read-only restrictions. Supply any known deployment facts, identifying assumptions explicitly; the Git comparison base is not necessarily the deployed version. This exception also applies to sequential invocation. A bare array from this lens is a contract failure, not a completed risk assessment.
 
 Notes per skill:
 
@@ -103,6 +107,7 @@ Notes per skill:
 - **ship-gate**: its `FAIL` → `critical`, `WARN` → `warn`, `CLEAN` checks contribute no findings.
 - **correctness-review**: CONFIRMED logic bug → `critical`; PLAUSIBLE logic bug or weak/missing test → `warn`. It reasons from the diff and repository; `/prove` owns executing counterfactual evidence.
 - **security-review**: CONFIRMED exploitable vuln → `critical`; PLAUSIBLE weakness or defense-in-depth gap → `warn`; hardening suggestion → `nit`.
+- **deployment-risk-review**: keep `assessment` separate and feed only `findings` into dedupe. Risk categories are not finding severities. Preserve baseline assumptions, per-surface risk, behavior classification, timing (including steady-state and delayed effects), recovery, mitigations, and unknowns even when no actionable defect is found. Deduplicate overlapping correctness findings without discarding existing-user/data impact.
 
 Both `/correctness-review` and `/security-review` self-gate: on a diff with no relevant surface they return `[]`, exactly like ship-gate's CLEAN checks.
 
@@ -132,12 +137,18 @@ Always save the report to `.agentic/review.md` relative to the current worktree'
 
 Print the same report to the terminal and identify its saved path. Include the run time, target, completion status, lens coverage, and deduped findings. For no diff, write `Status: no diff`; for a completed review with no findings, write `Status: completed` and `No findings.`. For invalid arguments, unresolved targets, missing skills, or failed lenses, write `Status: incomplete`, the reason, any partial findings, and what did not run. Never describe an incomplete review as clean. If the report cannot be written, report the write failure explicitly and do not claim the report was saved.
 
+Always include `Deployment risk:`. When the lens ran, print its overall category, assessment completeness, baseline assumptions, surface table, and unknowns. If its assessment is incomplete, mark the overall report `Status: incomplete` too, retaining known ratings and findings. When skipped, blocked, or not run, say `not assessed (<reason>)`; never infer low risk from zero findings or a skipped lens. For no diff, say `not assessed (no diff)`. A completed assessment can still describe high or critical deployment risk.
+
 ```
 review-suite report
 Run: <ISO timestamp>
 Status: completed
 Target: <diff scope>
-Triage: ran thermo-nuclear, ship-gate, correctness  |  skipped ponytail (pure deletion), security (no external surface)
+Triage: ran thermo-nuclear, ship-gate, correctness, deployment-risk  |  skipped ponytail (pure deletion), security (no external surface)
+Deployment risk: high; assessment complete
+Baseline: <deployment evidence or explicit assumptions>
+Surfaces: <workflow/data, risk, confidence, behavior classification, timing, impact/recovery, evidence, safeguards/mitigations>
+Unknowns: none
 Findings: <N> (after dedupe from <M> raw)
 
 [critical] src/api.ts:88 — debug console.log in production path  (via: ship-gate)
@@ -146,7 +157,7 @@ Findings: <N> (after dedupe from <M> raw)
 ...
 ```
 
-If every selected sub-skill successfully returned `[]`, include `No findings.` in the saved and printed report, then stop.
+If every selected sub-skill completed with an empty findings array (including the deployment-risk object's `findings`), include `No findings.` in the saved and printed report. Still print the deployment assessment and any incomplete status; no findings does not mean safe to deploy. Then stop.
 
 ## Guidelines
 

@@ -96,7 +96,7 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | `/create-worktree` | Initialize an isolated git worktree, branch, and `.agentic/<slug>/` workspace |
 | `/prep` | Interview the user; produce a single `plan.md` (goal, optimization target, acceptance criteria, verification plan, research, environment readiness, steps) |
 | `/build` | Execute or resume `plan.md`; preserve progress in `diary.md`; ask about checkpoint commits and TDD only when not recorded |
-| `/review-suite` | Run the installed code-quality review lenses in parallel, dedupe their findings, and always save the report to `.agentic/review.md` |
+| `/review-suite` | Run relevant quality, correctness, security, deployment-risk, and ship-hygiene lenses; dedupe findings and save risk assessments to `.agentic/review.md` |
 | `/resolve-review` | Plan and execute review fixes using the existing task plan; address clear issues, ask about ambiguous decisions, and record every finding's disposition |
 | `/prove` | Produce falsifiable evidence that the change does what it claims; falsify each artifact against the base tree; report PROVEN / VACUOUS / UNPROVEN per claim |
 | `/rehydrate` | Reload context from `plan.md` + `diary.md` after a `/clear` or interruption |
@@ -137,6 +137,7 @@ Standalone helpers, not part of the coding loop.
 | `/update-docs` | Audit the repo's docs against current code; propose edits and apply them after approval. Optional step after `/review-suite`. |
 | `/correctness-review` | Adversarial diff review for logic bugs and weak tests, supplemented by relevant correctness cheat sheets |
 | `/security-review` | Reachability-first review for exploitable vulnerabilities, supplemented by relevant OWASP cheat sheets |
+| `/deployment-risk-review` | Check incorrectness introduced into existing workflows and data during rollout and afterward, including delayed effects; classify behavior changes and deployment risk separately from finding severity. |
 | `/pressure-testing-scope` | Pressure-test a PRD, technical design document, or implementation plan; classify commitments to keep, cut, defer, or justify, then propose the minimum coherent scope. |
 | `/fetch-context` | Use the `fetch-context` CLI to clone upstream repositories or fetch web pages as Markdown, with raw-command fallbacks when the CLI is unavailable. |
 | `/audit-bug-patterns` | Audit the last N commits or a commit date range, classify recurring bug causes and escape factors, and rank durable prevention in code, tests, tooling, and progressively disclosed docs. Local-first; remote history and ticket systems require explicit confirmation. |
@@ -176,6 +177,7 @@ skills/
 ├── create-worktree/SKILL.md
 ├── correctness-review/SKILL.md
 ├── delete-worktree/SKILL.md
+├── deployment-risk-review/SKILL.md
 ├── fetch-context/SKILL.md
 ├── kaizen/SKILL.md
 ├── merge-pr/SKILL.md
