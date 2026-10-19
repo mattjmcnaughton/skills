@@ -28,6 +28,13 @@ Read `.agentic/<slug>/ticket.json` or `ticket.md` if present, accepting free-for
 
 For a known GitHub issue, use `Closes #N` (features) or `Fixes #N` (bugs), qualifying cross-repository references. For Linear, Jira, or another tracker, preserve its identifier or URL in a neutral `Refs:` footer unless repository guidance specifies supported integration syntax. Never turn `AGE-4` into GitHub issue `#4` or assume a reference will close an external ticket. Do not invent an identifier from a task slug.
 
+When called within `/ship-ticket`, `/run-wave`, or `/run-waves`, read the inherited
+permission record (from the brief or outer task's `plan.md`). Use neutral
+`Refs: #N` references unless closing that specific ticket is explicitly authorized.
+Apply this to the entire proposed message, not just its footer. Missing or unclear
+closure permission grants none; local commit approval does not grant future ticket
+closure. Standalone invocations retain the reference defaults above.
+
 ## Format
 
 ```

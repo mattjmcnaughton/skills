@@ -48,6 +48,19 @@ Push the active branch to origin and open a GitHub PR via `gh`. The body is comp
 
 Do **not** include AI attribution or `Generated with` trailers unless the user explicitly asks for them.
 
+## Orchestrated permission check
+
+When called within `/ship-ticket`, `/run-wave`, or `/run-waves`, read the inherited
+permission record from the brief or outer task's `plan.md`. Require explicit push
+and PR permissions for the destination before executing either write. A missing
+record is not permission; stop and report the missing authorization.
+
+Unless closing the specific ticket is authorized, use neutral `Refs: #N` references
+instead of closing syntax throughout the proposed PR body. Before pushing, inspect
+the outgoing commit messages too: existing `Closes`/`Fixes` references can close
+tickets when merged. If they exceed the grant, stop publication and report them;
+do not silently rewrite commits. Standalone reference defaults remain unchanged.
+
 ## Execute
 
 1. **Push the branch** (with upstream set on first push):
