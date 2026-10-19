@@ -1,15 +1,31 @@
 ---
 name: merge-pr
-description: Merge an approved GitHub PR via rebase and delete the remote branch. Use as the final step after the PR is approved and CI is green.
+description: Merges an approved GitHub PR via rebase and requests remote branch deletion when permitted. Use as the final step after the PR is approved and CI is green.
 ---
 
-Merge the PR for the current branch (or a specified PR) using an explicit PR number and `--repo` with `gh pr merge --rebase --delete-branch`. Keep history linear and request remote branch deletion, leaving all local cleanup to `/delete-worktree`.
+Merge the PR for the current branch (or a specified PR) using an explicit PR number and `--repo` with `gh pr merge --rebase`. By default, add `--delete-branch` for same-repository PRs, subject to the orchestrated permissions below. Leave all local cleanup to `/delete-worktree`.
 
 ## Preconditions
 
 - `gh` is authenticated. If not, surface the error from `gh auth status`.
 - The PR is approved (or the user explicitly chooses to override) and CI is green (or the user explicitly accepts merging with failing checks).
 - No uncommitted changes lingering. If there are, stop and tell the user.
+
+## Orchestrated permission check
+
+When called within `/ship-ticket`, `/run-wave`, or `/run-waves`, read the inherited
+permission record from the brief or outer task's `plan.md`. Missing or ambiguous
+permissions grant nothing. Require merge permission for the exact destination;
+request remote deletion only if separately authorized for that branch. Without
+deletion permission, omit `--delete-branch` even for a same-repository PR.
+
+Required CI must pass for the current head in an orchestrated run; do not use the
+standalone failing-CI override. Recheck the PR body and candidate commit messages
+for ticket-closing references before merging. If closure is not authorized, stop
+and report them rather than silently editing the PR or rewriting commits. Inspect
+repository auto-deletion settings too: omitting the flag cannot prevent server-side
+branch deletion. If that effect exceeds the grant, stop before merging and report
+the needed permission; do not change repository settings.
 
 ## Gather context
 
@@ -29,7 +45,7 @@ Show the proposed action and ask once:
 About to:
   Merge PR #<N> (<title>) into <base> using --rebase
   Repository: <owner/repo>
-  Request remote branch deletion: <branch> (same-repository PR only)
+  Request remote branch deletion: <branch or "no", based on permissions and fork status>
   Leave local branches and worktrees unchanged
 
 Proceed? (y/n)
@@ -37,9 +53,9 @@ Proceed? (y/n)
 
 ## Execute
 
-1. **Merge** a same-repository PR with rebase and remote branch deletion:
+1. **Merge** with rebase, adding `--delete-branch` only when the policy above permits it:
    ```bash
-   gh pr merge <N> --repo <owner/repo> --rebase --delete-branch
+   gh pr merge <N> --repo <owner/repo> --rebase
    ```
    The explicit `--repo` flag disables GitHub CLI's local branch/worktree cleanup. Keep it even when running in that repository; `GH_REPO` or a PR URL alone is not a substitute. Do not switch branches, pull, prune, remove worktrees, or delete local branches here.
 
@@ -49,7 +65,7 @@ Proceed? (y/n)
 ## Guidelines
 
 - Always `--rebase`. Don't switch to `--squash` or `--merge` unless the user explicitly asks.
-- Request `--delete-branch` for same-repository PRs; never claim deletion without verifying it. Fork branches and blocked deletion require a separate decision.
+- Request `--delete-branch` for same-repository PRs unless the orchestrated permission check forbids it; never claim deletion without verifying it. Fork branches and blocked deletion require a separate decision.
 - Never `--admin` to bypass branch protection unless the user explicitly says so.
 - Don't touch local worktrees, local branches, or linked issues here — this skill is scoped to the merge itself.
 - Plain text only. No emojis in confirmation or report unless the user asks.

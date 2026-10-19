@@ -109,6 +109,22 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 
 Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite` → `/resolve-review` → `/prove` → `/create-commit` → `/create-pr` → (optional `/sync-remote` after follow-up edits) → (optional `/review-pr` from a teammate) → `/merge-pr` → `/delete-worktree`. `/rehydrate` slots in anywhere after `/prep`. `/build` establishes that the implementation works, `/review-suite` judges how it is written, `/resolve-review` addresses its findings without committing or publishing, and `/prove` packages falsifiable evidence from the final reviewed diff. You can prepare `/prove`'s capture plan while review runs, but capture after resolving review findings so the evidence still describes the code being shipped. `/ship-gate` (see below) is an optional manual checkpoint before `/create-pr` and again before `/merge-pr`.
 
+### Ticket orchestration
+
+| Skill | Role | Also install |
+|---|---|---|
+| `/ship-ticket` | Execute one ticket through the coding loop to an agreed local-ready, PR-open, or merged target | `/create-worktree`, `/prep`, `/build`, `/review-suite`, `/resolve-review`, `/prove`, `/create-commit`; `/create-pr` and `/merge-pr` for those delivery targets |
+| `/run-wave` | Coordinate one bounded parallel batch and verify integrated candidates | `/ship-ticket` and its dependencies |
+| `/run-waves` | Repeat waves within a finite selected ticket set, with limits and resumable progress | `/run-wave` and its dependencies |
+
+Install the full `ship-ticket` directory, including its shared permissions/recovery reference. Keep these three directories as siblings, as with the installers above. Review-suite uses the installed review lenses; install the relevant reviewers as described in its instructions.
+
+These skills ask upfront about external writes and default to none. The outer run records permission and passes it down; workers cannot expand it. Ticket updates, pushes, PRs, merges, uploads, and external service calls need explicit scope. A delivery target alone grants no permission. Existing stage-specific approval gates still apply, so sustained execution can pause for a human decision. Project-specific commands, domain rules, and conventions stay in the consuming repository's guidance or an optional execution guide.
+
+In orchestrated runs, commit and PR references stay neutral unless ticket closure is authorized, and merging does not authorize remote branch deletion. Required CI must pass; the standalone merge skill's failing-CI override is unavailable. Commit-message, PR-body, merge, and proof-plan approvals remain human gates: upfront write permission is not unattended-mode approval. Settled requirements and checkpoint/TDD choices are reused.
+
+Examples: `/ship-ticket <ticket-url> locally only`; `/run-wave <ticket-list> with two workers`; `/run-waves milestone <name> for at most three waves`. Selectors resolve to a finite list; new matching tickets are not silently added. `/run-wave` stops after one batch. `/run-waves` runs in the active session, not a background scheduler, and retains blocked work without retrying it indefinitely.
+
 ### Other skills
 
 Standalone helpers, not part of the coding loop.
@@ -173,8 +189,13 @@ skills/
 ├── resolve-review/SKILL.md
 ├── review-suite/SKILL.md
 ├── review-pr/SKILL.md
+├── run-wave/SKILL.md
+├── run-waves/SKILL.md
 ├── security-review/SKILL.md
 ├── ship-gate/SKILL.md
+├── ship-ticket/
+│   ├── SKILL.md
+│   └── references/run-contract.md
 ├── static-html/SKILL.md
 ├── sync-remote/SKILL.md
 ├── update-docs/SKILL.md
