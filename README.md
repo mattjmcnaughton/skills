@@ -132,6 +132,8 @@ Standalone helpers, not part of the coding loop.
 | Skill | Role |
 |---|---|
 | `/walk-decisions` | Walk through supplied decisions one at a time (or in requested chunks), recommend an option for each, and recap the user's choices. |
+| `/author-constitution` | Discover and agree enduring project commitments; draft or amend a constitution and integrate authorized guidance changes. |
+| `/apply-domain-driven-design` | Discover and evolve a domain model in a new or existing codebase; implement agreed scoped changes without prescribing DDD machinery. |
 | `/static-html` | Create a polished, self-contained HTML page with embedded React, compiled Tailwind CSS, and assets; works offline when opened directly in a browser. |
 | `/kaizen` | Confirm accessible project chat sessions over a time range, then recommend evidence-backed repo and agentic coding skill improvements. Prefers `agent-logs-extractor` with native-source fallbacks. |
 | `/update-docs` | Audit the repo's docs against current code; propose edits and apply them after approval. Optional step after `/review-suite`. |
@@ -163,9 +165,11 @@ Standalone helpers, not part of the coding loop.
 
 ```
 skills/
+├── apply-domain-driven-design/SKILL.md
 ├── audit-bug-patterns/SKILL.md
 ├── audit-third-party/SKILL.md
 ├── audit-skill/SKILL.md
+├── author-constitution/SKILL.md
 ├── build/SKILL.md
 ├── create-commit/SKILL.md
 ├── create-diagram/
