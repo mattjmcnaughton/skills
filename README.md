@@ -116,6 +116,7 @@ Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite
 | `/ship-ticket` | Execute one ticket through the coding loop to an agreed local-ready, PR-open, or merged target | `/create-worktree`, `/prep`, `/build`, `/review-suite`, `/resolve-review`, `/prove`, `/create-commit`; `/create-pr` and `/merge-pr` for those delivery targets |
 | `/run-wave` | Coordinate one bounded parallel batch and verify integrated candidates | `/ship-ticket` and its dependencies |
 | `/run-waves` | Repeat waves within a finite selected ticket set, with limits and resumable progress | `/run-wave` and its dependencies |
+| `/give-update` | Read-only progress snapshot for a ticket or wave run: percentage complete, current work, blockers, and next action | — |
 
 Install the full `ship-ticket` directory, including its shared permissions/recovery reference. Keep these three directories as siblings, as with the installers above. Review-suite uses the installed review lenses; install the relevant reviewers as described in its instructions.
 
@@ -183,6 +184,7 @@ skills/
 ├── delete-worktree/SKILL.md
 ├── deployment-risk-review/SKILL.md
 ├── fetch-context/SKILL.md
+├── give-update/SKILL.md
 ├── kaizen/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
