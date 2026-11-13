@@ -1,6 +1,6 @@
 ---
 name: ship-ticket
-description: Executes one ticket through preparation, implementation, review, evidence, and authorized delivery. Use to ship or resume a single ticket, independently or as a run-wave worker.
+description: Executes one ticket through a full or opt-in lite coding loop and authorized delivery. Use to ship or resume a feature or bug fix, independently or as a run-wave worker.
 ---
 
 # Ship one ticket
@@ -33,6 +33,14 @@ ticket, allowed scope, writer ownership, delivery owner, permissions, and recove
 location. The parent owns integration/publication unless it explicitly assigns
 those actions to this worker. Do not independently publish a wave candidate.
 
+Apply the run contract's workflow and proof choices. For a known bug, use `/prep`
+to establish expected versus observed behavior and reproduce the reported failure
+on the recorded base before changing implementation. Treat a proposed cause as a
+hypothesis until checked. Carry the reproducer into the verification plan and rerun
+it after the fix, with a nearby unaffected case. If reproduction is unavailable,
+record the missing evidence and agree how to validate the fix; do not claim a
+confirmed cause or successful reproduction. A bug report alone does not select lite.
+
 ## Execute the coding loop
 
 1. Use `/create-worktree` for a new isolated task workspace, or reconcile and reuse
@@ -40,22 +48,28 @@ those actions to this worker. Do not independently publish a wave candidate.
    delegated invocation. Initialize `.agentic/<slug>/` using the existing ignore
    and tracked-path checks; preserve ticket context, plan, and diary on resume.
 2. Run `/prep`, supplying the approved requirements, project guide, base, delivery
-   target, and permission record. Reuse settled decisions rather than inventing
-   answers or reopening them. Route genuinely missing decisions to the user.
+   target, workflow, and permission record. Revalidate any provisional read-only
+   prep against this base; finish its missing decisions and environment probes
+   before building. Reuse settled decisions rather than inventing answers or
+   reopening them. Route genuinely missing decisions to the user.
 3. Run `/build`; record checkpoint/TDD choices when answered. Keep its local
    checkpoint/final commit handling distinct from acceptance or publication.
-4. Run `/review-suite` on the complete ticket diff against its recorded base.
+4. In full mode, run `/review-suite` on the complete ticket diff against its recorded base.
    Arrange review independent of the implementer using available reviewers and
    allowed delegation tools. Reviewers are read-only or use an isolated copy.
    If independent review is unavailable, report that limitation; do not label
    self-review independent or claim the full workflow completed.
-5. Run `/resolve-review`. Record every finding's disposition, including a no-fix
+5. In full mode, run `/resolve-review`. Record every finding's disposition, including a no-fix
    outcome when appropriate. Recheck meaningful fixes and repeat affected review.
    Unresolved product/policy decisions remain blockers, not guessed requirements.
-6. Run `/prove` on the reviewed candidate, honoring its concrete capture-plan and
+6. In full mode with ticket proof, run `/prove` on the reviewed candidate, honoring its concrete capture-plan and
    tooling approval gates. Record its actual verdicts; distinguish regression
    checks from falsifiable acceptance evidence. If there is no behavioral claim,
    record its not-applicable result. Do not turn UNPROVEN into PROVEN to ship.
+   With wave proof, return claims, original base, candidate revision, and build
+   checks to the parent; mark full proof pending integration. In lite mode, omit
+   stages 4–6 under the recorded policy; run any agreed lightweight check as part
+   of build verification and report its actual result, not a `/prove` verdict.
 7. Inspect the final diff and explicitly staged paths, then use `/create-commit`
    for any remaining changes. Do not create an empty duplicate commit if `/build`
    already committed the final candidate. Changes after review/proof require
@@ -68,8 +82,9 @@ and proof capture. An orchestrator is not a substitute for a required human.
 
 ## Deliver and hand off
 
-Local-ready means a committed, reviewed candidate with verification results and
-honest evidence limitations. If acceptance remains unmet, report a checkpoint or
+Local-ready follows the selected full or lite policy in the run contract, with
+verification results and honest evidence limitations. Deferred wave proof is still
+pending, not local-ready. If acceptance remains unmet, report a checkpoint or
 blocked candidate instead. It does not mean pushed, merged, or deployed.
 
 For a standalone ticket, invoke `/create-pr` only when push and PR permissions

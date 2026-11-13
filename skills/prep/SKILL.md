@@ -5,6 +5,12 @@ description: Interviews the user and researches the codebase to write an impleme
 
 `/prep` is one conversation that produces one artifact: `.agentic/<slug>/plan.md`. It interviews the user, probes the codebase, verifies the environment is ready for autonomous execution, and writes everything `/build` will need.
 
+## Orchestrated preparation
+
+When asked for **read-only prep**, research the supplied ticket against the exact supplied revision without changing source, Git state, task records, dependencies, or services. Return a provisional plan in the conversation or worker handoff instead of writing `plan.md`; the owning orchestrator persists it. Include the inspected revision, likely files, acceptance checks, unresolved decisions, dependency assumptions, and environment probes still needed. Finish with that handoff rather than continuing into the normal workspace, interview, or write/probe steps below. Do not run boot or test probes that write files or start services. This is research, not completed `/prep` or authorization to build. Before build, the ticket owner revalidates it against the assigned base, resolves missing decisions, performs environment readiness checks, and writes the normal plan.
+
+For an explicitly selected `ship-ticket` **lite** workflow, keep the plan concise and reuse supplied requirements and decisions. Skip optional grilling offers unless requested; retain concrete acceptance checks, implementation steps, and environment readiness. Lite does not mean skipping preparation or verification.
+
 ## Locate the workspace
 
 If the current directory contains exactly one `.agentic/<slug>/` dir, use it. If there are multiple, pick the one whose `<slug>` matches the current git branch; otherwise ask. If `.agentic/` doesn't exist, suggest `/create-worktree` first.
@@ -21,7 +27,7 @@ May fan out to Explore sub-agents in parallel when research spans multiple domai
 
 ### Grilling offers
 
-At three points in this flow, offer to run a grilling skill. Pick which one by checking the repo root:
+Outside the lite workflow above, at three points in this flow, offer to run a grilling skill. Pick which one by checking the repo root:
 
 - If `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` exists → offer `/grill-with-docs`.
 - Otherwise → offer `/grill-me`.

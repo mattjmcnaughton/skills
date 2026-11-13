@@ -3,6 +3,37 @@
 Shared contract for `/ship-ticket`, `/run-wave`, and `/run-waves`. Each outermost
 invocation applies this before execution; nested invocations inherit the record.
 
+## Choose workflow and proof placement
+
+Before dispatch or implementation, offer these choices together with the run's
+other setup decisions. Reuse explicit choices already supplied by the user.
+
+- Workflow: `full` (default) or opt-in `lite` per ticket. Lite is for a bounded,
+  straightforward fix with understood behavior and a cheap targeted check. It
+  keeps `/prep`, `/build`, final diff inspection, and commit/delivery gates, but
+  omits `/review-suite`, `/resolve-review`, and full `/prove`. Build verification
+  is mandatory; offer one lightweight before/after check when useful. Record
+  omitted stages as omitted by policy, not passed or not applicable. If discovery
+  exposes uncertain scope, security-sensitive behavior, migrations, or cross-system
+  changes, pause and propose full mode rather than silently continuing lite.
+- Full proof placement: `ticket` (default) or `wave`. Wave placement defers full
+  `/prove` from full-mode workers to the exact integrated wave candidate before
+  publication or final local-ready acceptance. It does not defer build checks or
+  ticket review. Lite tickets retain their lightweight verification policy; wave
+  integration checks still cover them. Standalone tickets cannot defer to a wave
+  without an identified parent that accepts responsibility.
+- With parallel agents, offer read-only prep ahead of available build slots,
+  disabled unless selected. Record a separate prep-worker limit (default one
+  when enabled); implementer limits still bound writers.
+
+Record workflow per ticket, proof placement/owner, and prep-ahead policy in the
+outer plan and pass them to workers. A worker awaiting wave proof is a reviewed
+candidate with proof pending, not local-ready. Full-mode acceptance still requires
+the recorded proof outcome; deferred is not PROVEN. Lite local-ready means a
+committed candidate with its planned build checks satisfied and omitted stages
+disclosed, not a fully reviewed or proven candidate. Neither mode lowers acceptance
+criteria, repository-required checks, permissions, or human approval gates.
+
 ## Ask upfront; default to no external writes
 
 Read-only discovery may identify scope and side effects before the question.
@@ -59,6 +90,9 @@ outer diary records ticket ownership, worker/run identity, absolute worktree,
 branch, exact base/candidate/checkpoint revisions, stage and delivery status,
 checks/evidence references, blockers, and next action. Per-ticket diaries own
 implementation detail. Record completed actions immediately to prevent duplicates.
+Include provisional prep's inspected revision, unresolved assumptions, and
+revalidation status; for deferred proof, retain each ticket's claims, original
+base, candidate, and parent proof owner until the integrated verdict is recorded.
 
 Keep one writer per worktree. Save local checkpoints using the applicable commit
 approval rules before planned stops or handoffs; unfinished checkpoints are not

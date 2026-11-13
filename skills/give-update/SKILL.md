@@ -32,7 +32,11 @@ affected status; silence or an idle worker is not proof of completion.
   completed milestones / applicable milestones as a rounded whole percentage,
   labeled **stage-based estimate**, not effort or time remaining. Count a milestone
   only with supporting evidence on the current candidate. An explicit valid
-  not-applicable result satisfies that stage; a missing stage does not. Reopened
+  not-applicable result satisfies that stage; a missing stage does not. Exclude
+  stages explicitly omitted by the recorded lite policy from the denominator and
+  disclose those omissions. Deferred wave proof remains incomplete until the
+  parent records its result for this ticket. Provisional read-only prep is not
+  completed preparation until revalidated and finished on the build base. Reopened
   stages are incomplete. Reserve 100% for meeting acceptance and the agreed target.
 - **Run-wave:** report tickets at the agreed target / tickets selected for this
   wave. Worker candidates alone do not count as delivered: required integration

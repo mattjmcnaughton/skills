@@ -33,6 +33,13 @@ work; default to a dispatch cutoff with safe checkpointing of active workers.
 Keep all progress in the outer diary and per-ticket task records. This skill is
 active-session execution, not a scheduler or a promise to survive process loss.
 
+Agree the run contract's full/lite choices, ticket/wave proof placement, and
+optional read-only prep-ahead policy once for this run. Carry them forward rather
+than asking every wave. Prep may overlap the current wave for a later selected
+ticket, including a dependent, but does not start the next implementation wave.
+Retain its provisional handoff and inspected revision for later revalidation.
+Wave proof means the end of each wave, not the end of the entire multi-wave run.
+
 ## Repeat deliberately
 
 1. Reconcile actual code, refs, ownership, and delivery with the diary. On resume,
@@ -46,7 +53,9 @@ active-session execution, not a scheduler or a promise to survive process loss.
    steps when permitted, never rebuild them to satisfy the delivery target.
 3. Choose one finite, independent wave under the remaining budget. Call `/run-wave`
    with the exact integration base, project policy, permissions, delivery owner,
-   worker limit, and handoff destination. Do not overlap successive waves.
+   workflow/proof/prep policies, worker limits, and handoff destination. Do not
+   overlap successive implementation/integration waves; read-only prep is the
+   only permitted lookahead.
 4. Wait for its workers and integration outcome while handling permitted work.
    Verify its report and record completed, blocked, and failed tickets plus the
    new verified baseline. Do not advance the baseline past failed integration.

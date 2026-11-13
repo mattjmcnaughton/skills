@@ -36,11 +36,31 @@ ticket comments are not atomic locks. In local-only mode, record local ownership
 without pretending other orchestrators can see it. Conflicting external ownership
 must be resolved before work; do not assume a stale claim is abandoned.
 
+## Prepare ahead without starting implementation
+
+Offer the run contract's prep-ahead choice when parallel agents are available.
+When enabled, dispatch `/prep` in read-only mode for a selected ticket B while
+ticket A builds, even if B has no build slot yet. A not-yet-ready dependent may
+be researched, but not implemented or counted as part of this wave's build batch.
+In `/run-waves`, it must belong to the finite selected set; otherwise ask before
+adding a ticket outside this invocation's scope.
+
+Give the prep worker the exact ticket, inspected revision, dependency assumptions,
+read-only boundary, and handoff destination. Use a stable snapshot or isolated
+read-only copy, not a writer's changing checkout. The worker returns provisional
+research; the orchestrator alone persists it in the existing task records. Keep
+prep workers within their separate limit and machine capacity. A completed prep
+does not claim a writer slot, satisfy dependency readiness, or authorize build.
+When B becomes build-ready, its owner revalidates the provisional plan against
+the actual assigned base and completes normal `/prep`. Preserve useful research
+and reopen only decisions invalidated by changed code or dependencies.
+
 ## Dispatch and collect
 
 Give each `/ship-ticket` worker the ticket and acceptance criteria, authoritative
 documents, exact base, absolute worktree/branch, allowed scope, permission record,
-delivery owner, and retained handoff destination. Initialize or assign its task
+workflow, proof placement/owner, provisional prep if any, delivery owner, and
+retained handoff destination. Initialize or assign its task
 workspace without overwriting existing work. One writer per worktree; isolate
 databases, ports, browser sessions, migration identifiers, and generated artifacts.
 
@@ -56,19 +76,34 @@ Route human approval gates back to the user, preserving the child's instructions
 Let independent workers continue when one ticket is blocked. Do not replace a
 blocked ticket by expanding this wave's agreed scope.
 
-Inspect each returned diff and evidence, not just the success summary. Missing
-review, failed checks, or unmet acceptance remain explicit. Preserve checkpoints
+Inspect each returned diff and evidence, not just the success summary. Distinguish
+policy-omitted lite stages and deferred wave proof from unexpectedly missing
+stages; failed checks or unmet acceptance remain explicit. Preserve checkpoints
 and transfer recovery material before releasing a worker environment. A blocked
 worker does not make the entire wave successful.
 
 ## Integrate and stop
 
-Integrate accepted candidates locally in dependency order on a dedicated branch,
+Integrate candidates that satisfy their pre-integration stages (including reviewed
+candidates awaiting wave proof) locally in dependency order on a dedicated branch,
 preserving unrelated work. Inspect conflicts and migration ordering; repeat
 affected review and checks after resolutions. Run combined verification on the
 exact integrated candidate; isolated green results do not prove compatibility.
 Refresh affected proof after substantive integration changes. If integration
 fails, retain candidates and stop publication until corrected and reverified.
+
+With wave proof selected and full-mode tickets included, run `/prove` once on the
+integrated candidate against the recorded wave baseline, after combined checks
+and integration fixes. Supply all full-mode tickets' acceptance claims, preserving
+ticket identity and wording, plus claims introduced by integration. Identify lite
+tickets and their omitted stages explicitly; mixed waves do not acquire a claim
+of full review from this proof. Follow `/prove`'s artifact and mutation rules when
+the wave baseline cannot host a check; setup failure is not behavioral failure.
+Obtain its concrete capture-plan/tool approvals here;
+choosing wave placement did not approve capture. Map actual verdicts back to
+each ticket and retain gaps as blockers where acceptance is unmet. If the wave
+is partial, prove only the included candidates and leave excluded tickets pending.
+No candidate awaiting required wave proof may be published or marked local-ready.
 
 Choose the publication unit before external writes: per-ticket PRs or a wave PR,
 following repository policy and the user's chosen target. Record this in the plan.
