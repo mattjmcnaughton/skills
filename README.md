@@ -94,7 +94,7 @@ The skills below compose into one flow: scope a task, build it, review it, ship 
 | Skill | Role |
 |---|---|
 | `/create-worktree` | Initialize an isolated git worktree, branch, and `.agentic/<slug>/` workspace |
-| `/prep` | Interview the user; produce a single `plan.md` (goal, optimization target, acceptance criteria, verification plan, research, environment readiness, steps) |
+| `/prep` | Interview the user; produce a single `plan.md` (goal, optimization target, acceptance criteria, verification plan, research, environment readiness, steps); read-only lookahead returns provisional research |
 | `/build` | Execute or resume `plan.md`; preserve progress in `diary.md`; ask about checkpoint commits and TDD only when not recorded |
 | `/review-suite` | Run relevant quality, correctness, security, deployment-risk, and ship-hygiene lenses; dedupe findings and save risk assessments to `.agentic/review.md` |
 | `/resolve-review` | Plan and execute review fixes using the existing task plan; address clear issues, ask about ambiguous decisions, and record every finding's disposition |
@@ -113,8 +113,8 @@ Typical sequence: `/create-worktree` → `/prep` → `/build` → `/review-suite
 
 | Skill | Role | Also install |
 |---|---|---|
-| `/ship-ticket` | Execute one ticket through the coding loop to an agreed local-ready, PR-open, or merged target | `/create-worktree`, `/prep`, `/build`, `/review-suite`, `/resolve-review`, `/prove`, `/create-commit`; `/create-pr` and `/merge-pr` for those delivery targets |
-| `/run-wave` | Coordinate one bounded parallel batch and verify integrated candidates | `/ship-ticket` and its dependencies |
+| `/ship-ticket` | Execute one feature or bug-fix ticket in full or opt-in lite mode to an agreed local-ready, PR-open, or merged target | `/create-worktree`, `/prep`, `/build`, `/create-commit`; `/review-suite`, `/resolve-review`, `/prove` for full mode; `/create-pr` and `/merge-pr` for those delivery targets |
+| `/run-wave` | Coordinate one bounded parallel batch, optional read-only prep ahead, and ticket- or wave-level proof | `/ship-ticket` and its dependencies |
 | `/run-waves` | Repeat waves within a finite selected ticket set, with limits and resumable progress | `/run-wave` and its dependencies |
 | `/give-update` | Read-only progress snapshot for a ticket or wave run: percentage complete, current work, blockers, and next action | — |
 
@@ -125,6 +125,14 @@ These skills ask upfront about external writes and default to none. The outer ru
 In orchestrated runs, commit and PR references stay neutral unless ticket closure is authorized, and merging does not authorize remote branch deletion. Required CI must pass; the standalone merge skill's failing-CI override is unavailable. Commit-message, PR-body, merge, and proof-plan approvals remain human gates: upfront write permission is not unattended-mode approval. Settled requirements and checkpoint/TDD choices are reused.
 
 Examples: `/ship-ticket <ticket-url> locally only`; `/run-wave <ticket-list> with two workers`; `/run-waves milestone <name> for at most three waves`. Selectors resolve to a finite list; new matching tickets are not silently added. `/run-wave` stops after one batch. `/run-waves` runs in the active session, not a background scheduler, and retains blocked work without retrying it indefinitely.
+
+Workflow choices are offered at setup and inherited by workers. Defaults remain full mode, per-ticket `/prove`, and no prep ahead:
+
+- **Prep ahead:** while A builds, a read-only `/prep` worker can research B on a stable revision, including a selected dependent not yet ready to build. It returns provisional research without changing source, Git state, or services. B's owner revalidates it and finishes environment checks on the actual build base; dependency and writer limits still apply.
+- **Wave proof:** full-mode tickets keep build checks and review but hand off proof claims to the parent. The parent runs `/prove` on the final integrated wave candidate before publication or local-ready acceptance, preserving capture-plan approval. In `/run-waves`, this happens at the end of each wave, not once after all waves.
+- **Lite:** explicitly choose it for a straightforward, bounded fix. Run concise `/prep` → `/build`, with mandatory planned checks and an optional lightweight before/after check; omit formal review/resolution and full `/prove`, disclosing the omissions. Keep commit/delivery approvals and repository-required checks. Escalate unexpected risk or scope for a decision rather than silently expanding lite.
+
+Examples: `/run-wave <tickets> with one implementer and one read-only prep worker; full proof at wave end`; `/ship-ticket <ticket-url> lite, locally only`. Known bugs use the same workflow: establish expected/observed behavior, reproduce before editing, then rerun the reproducer and an unaffected case. A bug report does not automatically select lite.
 
 ### Other skills
 

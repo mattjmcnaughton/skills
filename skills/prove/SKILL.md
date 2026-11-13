@@ -1,6 +1,6 @@
 ---
 name: prove
-description: Produces falsifiable evidence using identical checks on changed and counterfactual code. Use for "prove it", "show it works", acceptance evidence, or before/after verification. Requires capture-plan approval; never edits source or index.
+description: Challenges behavioral claims with proportional, falsifiable evidence on changed and counterfactual code. Use for "prove it", "show it works", "irrefutable proof", acceptance evidence, or before/after verification. Requires capture-plan approval; never edits source or index.
 ---
 
 `/prove` answers one question a reviewer cannot answer from a diff: **does this change actually do what it claims?** It gathers evidence per claim, then attacks each piece of evidence to see whether it survives.
@@ -12,6 +12,10 @@ The normal order is `/build` → `/review-suite` → `/prove`: `/build` already 
 ## The rule
 
 **Evidence that would look identical if the change did not work is not evidence.**
+
+**Push for irrefutable proof: actively seek a case where the claim is false but your evidence still passes. Close that hole, propose a narrower claim for approval, or report it UNPROVEN. More artifacts do not compensate for a non-distinguishing check.**
+
+PROVEN applies only to the behavior, inputs, and environment exercised, not universal correctness or an untested "breaks nothing" promise.
 
 Every artifact needs a counterfactual — the exact same test, harness, script, input, and command run against a world without the implementation change. A test that was never seen failing, a screenshot with no "before", a single benchmark run: these are decorations. A missing test file, import error, setup failure, or absent dependency on the base tree is not a successful falsification; it says the comparison was invalid. `/prove` produces a valid counterfactual for each artifact and reports the ones that do not survive.
 
@@ -37,13 +41,19 @@ If the target has no diff, report that and exit.
 A claim is one falsifiable statement about behavior. "Rejects negative quantities with a 422" is a claim; "improves validation" is not.
 
 - If `.agentic/<slug>/plan.md` exists, preserve each acceptance criterion's wording and intent. Split a compound criterion into separately falsifiable claims, and mark vague or non-falsifiable criteria UNPROVEN rather than silently rewriting their promise.
-- Otherwise, infer 3-5 claims from the diff and confirm them with the user in a single question before doing any work. Getting the claims wrong wastes the whole run.
+- Otherwise, infer only the claims needed to describe the diff and confirm them with the user in a single question before doing any work. A small fix may have one claim. Getting the claims wrong wastes the whole run.
+
+For each claim, name the observable result, relevant input boundaries, environment, and exclusions. Distinguish the promised behavior from the subset an affordable check can establish. A narrower check does not silently narrow an existing acceptance criterion: retain the original as UNPROVEN unless the user approves the revised claim.
 
 Claims the diff implies but nobody stated — a changed default, a new outbound call, a widened permission — get added as claims too. Unstated behavior changes are exactly what reviewers miss.
 
 ## Step 2: Pick evidence per claim
 
 Cheapest evidence that is still falsifiable. Not the most impressive. A pure-function change gets a unit test, never a video.
+
+Before proposing capture, name a plausible wrong implementation or alternative explanation that could pass the initial check. Choose a distinguishing input, boundary case, or unaffected control that rules it out, deriving expected results from the requirement rather than the implementation. For example, a transient-failure retry claim can distinguish "retry everything" and "always retry once" by also checking that permanent failures do not retry and successful calls remain single-attempt.
+
+Keep this challenge proportional: one focused before/after test may be sufficient. Add cases only to distinguish a named failure mode or support the claim's stated boundaries, not to meet a test count. Reuse existing tests and fixtures; do not require a full-stack run for a local claim or an extra mutation campaign when the approved comparison already distinguishes the failure. A mocked boundary cannot establish a claim about the real dependency beyond it. Record remaining holes rather than compensating with more artifacts.
 
 | Claim shape | Evidence | Counterfactual |
 |---|---|---|
@@ -66,12 +76,14 @@ For tests and executable harnesses, identify the **proof artifact** separately f
 
 Present one table covering every claim, then stop and wait. The point is that the user sees the tooling choice, cost, and external effects before any of it is spent — swapping a video for a screenshot pair, redirecting a test away from a shared database, or dropping a claim is nearly free here and expensive afterwards.
 
-| Claim | Evidence | Tool | Counterfactual | Cost | Side effects |
-|---|---|---|---|---|---|
-| 1. Rejects negative quantity | Unit test | pytest, existing | artifact over base tree | seconds | none |
-| 2. Banner renders on checkout | Screenshot pair | agent-browser | pixel diff | ~2 min, needs both dev servers | local fixture DB writes |
-| 3. Retry animation is smooth | Screencast | **Playwright `recordVideo` — not installed** | base-tree run of same script | ~10 min plus a new dependency | browser download, local server |
-| 4. No SSO regression | none | — | — | UNPROVEN, no test covers this path | — |
+| Claim | Evidence | Challenge / control | Tool | Counterfactual | Cost | Side effects |
+|---|---|---|---|---|---|---|
+| 1. Rejects negative quantity | Unit test | Reject-all bug: zero and positive quantities remain valid | pytest, existing | artifact over base tree | seconds | none |
+| 2. Banner renders on checkout | Screenshot pair | Wrong route: inspect checkout with a fixed fixture | agent-browser | pixel diff | ~2 min, needs both dev servers | local fixture DB writes |
+| 3. Retry animation is smooth | Screencast | Define smoothness and observable timing first; otherwise UNPROVEN | **Playwright `recordVideo` — not installed** | base-tree run of same script | ~10 min plus a new dependency | browser download, local server |
+| 4. No SSO regression | none | No exercised SSO boundary | — | — | UNPROVEN, no test covers this path | — |
+
+Include the claim's scope and known gaps with its row. Name the expected outcome of each control on candidate and counterfactual; an unaffected control should pass on both, not be forced to fail to qualify as evidence. Any later expansion of capture scope, cost, tooling, or side effects requires an amended plan and approval before execution.
 
 Name the tool explicitly, never just "a screenshot". The choice the user most needs to see is the visual one:
 
@@ -133,6 +145,8 @@ For an unchanged existing test already present in both trees, the test itself is
 
 Record the artifact digest and which mode was used. They prove different things: base-ref proves *this diff* causes the behavior; mutation proves the explicitly recorded semantic delta is necessary for it.
 
+Run the approved distinguishing cases and controls, recording expected versus actual outcomes. If a candidate control fails, the claim that includes it is UNPROVEN even if the main reproducer passes. If an unaffected control fails on the counterfactual, investigate whether the comparison is valid; an unrelated failure does not establish causality. A surviving alternative explanation leaves the affected claim UNPROVEN. Expand or revise the check only within the capture approval above; do not fix implementation here.
+
 ### Capturing visual evidence
 
 Screenshots and video are the artifacts most likely to come out VACUOUS, because two captures of the same page differ for reasons unrelated to the change. Determinism is a falsifiability requirement here, not polish. Both captures must come from one script run against both trees, with the same viewport and device scale, the same seeded fixture data rather than live data, animations disabled and the caret hidden, and dynamic regions — timestamps, generated IDs, avatars — masked.
@@ -161,12 +175,14 @@ Prefer not to. Video is not diffable, not searchable, and not regression protect
 
 | Verdict | Meaning |
 |---|---|
-| PROVEN | The frozen artifact passes on HEAD and produces a claim-specific behavioral failure under a valid base-ref or mutation counterfactual |
+| PROVEN | The frozen artifact passes on HEAD and produces a claim-specific behavioral failure under a valid base-ref or mutation counterfactual; approved distinguishing cases and controls support the stated scope with no unresolved challenge that defeats it |
 | VACUOUS | Artifact exists but the counterfactual also passed — the test is green on base, the screenshots are identical. Report loudly; this is worse than no evidence because it looks like evidence |
 | UNPROVEN | No falsifiable artifact could be produced, HEAD did not pass, or the counterfactual failed only because its setup was invalid |
 | ASSERTED | Prose reasoning only. Never counts as evidence; label it so the reviewer knows what they are trusting |
 
 Lead the report with VACUOUS and UNPROVEN. The claims that failed to prove are the most useful thing `/prove` produces.
+
+For every verdict, state the exercised scope and remaining limitations, including mocked boundaries, untested environments, and missing controls. A narrow PROVEN result does not prove a broader acceptance criterion. Use "irrefutable" as the challenge standard, not an unqualified result label.
 
 ## Does not count as evidence
 
@@ -196,9 +212,12 @@ evidence/
 
 ```
 Claim 1: POST /orders rejects negative quantity with 422
+  Scope:        local API with seeded data; quantities -1, 0, 2; not production
   Evidence:     test_orders.py::test_negative_quantity_rejected (unit)
   Artifact:     sha256:8e7... (identical test + command on both trees)
   Falsified by: base ref a1b2c3d -> ASSERTION FAILED (returned 201, expected 422)
+  Challenge:    reject-all bug ruled out: 0 and 2 accepted on both trees
+  Limitations:  other quantities and deployment environments not exercised
   Verdict:      PROVEN
 
 Claim 2: retry backoff caps at 30s
