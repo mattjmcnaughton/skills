@@ -21,18 +21,26 @@ other setup decisions. Reuse explicit choices already supplied by the user.
   publication or final local-ready acceptance. It does not defer build checks or
   ticket review. Lite tickets retain their lightweight verification policy; wave
   integration checks still cover them. Standalone tickets cannot defer to a wave
-  without an identified parent that accepts responsibility.
+  without an identified parent that accepts responsibility. `/prove` owns how
+  the parent runs wave proof.
 - With parallel agents, offer read-only prep ahead of available build slots,
   disabled unless selected. Record a separate prep-worker limit (default one
   when enabled); implementer limits still bound writers.
+- Collect missing checkpoint/TDD choices and, for full-mode tickets, the optional
+  grilling preference once, following `/build` and `/prep`. Children ask only
+  about missing choices, contradictions, or unresolved ticket decisions. These
+  preferences do not approve commit messages, proof capture plans, or publication.
+- For a wave, the publication unit: per-ticket PRs or a wave PR, following
+  repository policy and the user's target.
 
-Record workflow per ticket, proof placement/owner, and prep-ahead policy in the
-outer plan and pass them to workers. A worker awaiting wave proof is a reviewed
-candidate with proof pending, not local-ready. Full-mode acceptance still requires
-the recorded proof outcome; deferred is not PROVEN. Lite local-ready means a
-committed candidate with its planned build checks satisfied and omitted stages
-disclosed, not a fully reviewed or proven candidate. Neither mode lowers acceptance
-criteria, repository-required checks, permissions, or human approval gates.
+Record workflow per ticket, proof placement/owner, prep-ahead policy, and the
+other choices above in the outer plan and pass them to workers with settled
+requirements. A worker awaiting wave proof is a reviewed candidate with proof
+pending, not local-ready. Full-mode acceptance still requires the recorded proof
+outcome; deferred is not PROVEN. Lite local-ready means a committed candidate
+with its planned build checks satisfied and omitted stages disclosed, not a
+fully reviewed or proven candidate. Neither mode lowers acceptance criteria,
+repository-required checks, permissions, or human approval gates.
 
 ## Ask upfront; default to no external writes
 
@@ -83,6 +91,22 @@ private records, session storage, and raw sensitive logs. Use synthetic fixtures
 If a write times out or its outcome is unknown, inspect remote state before
 retrying; avoid duplicate PRs, comments, and other non-idempotent actions.
 
+## Reuse run context without repeating work
+
+Keep shared research and setup facts in the outer plan with source paths,
+revisions, commands, applicable environments, and known gaps. Pass workers the
+relevant entries and retained references, not full transcripts. Reuse valid
+facts across waves; refresh affected entries when source, dependency,
+configuration, or environment inputs change or are unknown. Workers still
+inspect ticket-specific code and establish their own environment readiness under
+`/prep`.
+
+`/prep` owns the verification schedule and result-reuse policy; `/build` records
+executions, `/review-suite` owns risk-based reviewer allocation, and `/prove`
+owns proof validity and deferral. Carry their records between stages rather than
+repeating discovery or inventing weaker overrides. Reuse of successful checks
+requires matching recorded inputs, not merely a success summary.
+
 ## Preserve one recoverable record
 
 Use `.agentic/<slug>/plan.md` and `diary.md`, not a parallel planning system. The
@@ -93,6 +117,15 @@ implementation detail. Record completed actions immediately to prevent duplicate
 Include provisional prep's inspected revision, unresolved assumptions, and
 revalidation status; for deferred proof, retain each ticket's claims, original
 base, candidate, and parent proof owner until the integrated verdict is recorded.
+
+Worker handoffs summarize exact base/candidate revisions, changed paths,
+stage/review results, check identities and retained logs, proof verdicts with
+scope/limitations, named deferrals, or lite-omitted stages, blockers, and next
+action. Keep detailed investigation in the ticket diary. The wave coordinator
+inspects diffs and relevant evidence, then investigates integration
+interactions, gaps, or contradictions rather than repeating completed ticket
+research. The outer run reconciles wave outcomes and readiness; it is not
+another ticket-review layer.
 
 Keep one writer per worktree. Save local checkpoints using the applicable commit
 approval rules before planned stops or handoffs; unfinished checkpoints are not

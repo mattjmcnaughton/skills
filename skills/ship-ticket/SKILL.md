@@ -48,26 +48,33 @@ confirmed cause or successful reproduction. A bug report alone does not select l
    delegated invocation. Initialize `.agentic/<slug>/` using the existing ignore
    and tracked-path checks; preserve ticket context, plan, and diary on resume.
 2. Run `/prep`, supplying the approved requirements, project guide, base, delivery
-   target, workflow, and permission record. Revalidate any provisional read-only
-   prep against this base; finish its missing decisions and environment probes
-   before building. Reuse settled decisions rather than inventing answers or
-   reopening them. Route genuinely missing decisions to the user.
-3. Run `/build`; record checkpoint/TDD choices when answered. Keep its local
-   checkpoint/final commit handling distinct from acceptance or publication.
-4. In full mode, run `/review-suite` on the complete ticket diff against its recorded base.
-   Arrange review independent of the implementer using available reviewers and
-   allowed delegation tools. Reviewers are read-only or use an isolated copy.
-   If independent review is unavailable, report that limitation; do not label
-   self-review independent or claim the full workflow completed.
-5. In full mode, run `/resolve-review`. Record every finding's disposition, including a no-fix
-   outcome when appropriate. Recheck meaningful fixes and repeat affected review.
+   target, workflow, permission record, run-level choices, and applicable shared
+   research/setup. Revalidate any provisional read-only prep against this base;
+   finish its missing decisions and environment probes before building. Reuse
+   settled decisions and source-backed findings; investigate ticket-specific gaps
+   and route genuinely missing decisions to the user.
+3. Run `/build` with `/prep`'s verification schedule: targeted checks during work,
+   broader checks early where needed, and the full local gate at ticket readiness
+   before review. Reuse recorded checkpoint/TDD choices. Keep local checkpoint/final
+   commit handling distinct from acceptance or publication.
+4. In full mode, run `/review-suite` on the complete ticket diff against its
+   recorded base. Follow its risk-based allocation: combine selected lenses in one
+   independent reviewer only for established low-risk changes; retain specialist
+   fan-out for risky or uncertain changes. Reviewers are read-only or use an
+   isolated copy. If independent review is unavailable, report that limitation;
+   do not label self-review independent or claim the full workflow completed.
+5. In full mode, run `/resolve-review`. Record every finding's disposition,
+   including a no-fix outcome when appropriate. Recheck fixes under the recorded
+   reuse policy and repeat affected review, not automatically the entire suite.
    Unresolved product/policy decisions remain blockers, not guessed requirements.
-6. In full mode with ticket proof, run `/prove` on the reviewed candidate, honoring its concrete capture-plan and
-   tooling approval gates. Record its actual verdicts; distinguish regression
-   checks from falsifiable acceptance evidence. If there is no behavioral claim,
-   record its not-applicable result. Do not turn UNPROVEN into PROVEN to ship.
-   With wave proof, return claims, original base, candidate revision, and build
-   checks to the parent; mark full proof pending integration. In lite mode, omit
+6. In full mode, plan proof early. With ticket proof, run `/prove` after review
+   fixes settle, honoring its concrete capture-plan and tooling approval gates.
+   Record its actual verdicts or a no-behavioral-claim not-applicable result;
+   distinguish regression checks from falsifiable acceptance evidence. Do not turn
+   UNPROVEN into PROVEN to ship. With wave proof, hand the parent exact claims,
+   original base, candidate revision, build checks, artifacts, and pending capture
+   approvals under `/prove`'s wave-proof rules; mark full proof pending
+   integration. Deferral never becomes PROVEN by assertion. In lite mode, omit
    stages 4–6 under the recorded policy; run any agreed lightweight check as part
    of build verification and report its actual result, not a `/prove` verdict.
 7. Inspect the final diff and explicitly staged paths, then use `/create-commit`
@@ -97,9 +104,13 @@ made by `/build`. Remote branch deletion needs its own permission. Never close a
 ticket merely because a branch or PR exists. Closing syntax in commit messages
 and PR bodies is also a planned ticket-status write and needs permission.
 
-For a wave worker, return the candidate and let the parent integrate it. In either
-case report ticket identity, base/candidate revisions, worktree/branch, stage
-status, review dispositions, exact checks/results, proof verdicts/limitations,
-external writes performed, remaining approvals/blockers, and the next action.
+For a wave worker, return the candidate and let the parent integrate it. A reviewed,
+gate-passing candidate with explicitly deferred proof may enter local integration,
+but is proof-pending, not local-ready or accepted for delivery. The parent must
+complete that stage and check acceptance before publication.
+
+Return the compact handoff defined in the run contract, including ticket identity,
+worktree/branch, external writes performed, and remaining approvals. Link detailed
+investigation and evidence rather than copying full diaries into parent context.
 Preserve recovery material as described in the run contract. Do not remove the
 worktree or branch automatically.

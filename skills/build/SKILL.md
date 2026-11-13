@@ -22,10 +22,10 @@ If `.agentic/<slug>/diary.md` exists, read and preserve it. Resume using the che
 
 On a fresh start, or for choices missing from the diary, ask before writing code:
 
-1. **Checkpoint commits?** (y/n) — When yes, create one conventional commit per plan step after the gate passes. When no, work freely and commit at the end.
+1. **Checkpoint commits?** (y/n) — When yes, create one conventional commit per plan step after its planned checks pass. When no, work freely and commit at the end.
 2. **Red/green TDD?** (y/n) — When yes, each step writes a failing test, then implements until green, then refactors. When no, freer-form.
 
-Record new answers in diary.md without replacing existing entries so `/rehydrate` knows the mode.
+Reuse explicit run-level answers supplied by an orchestrator and record them in the task diary; do not ask each worker again. Record new answers in diary.md without replacing existing entries so `/rehydrate` knows the mode. Checkpoint preferences do not waive `/create-commit` approvals.
 
 ## Per-step loop
 
@@ -33,16 +33,16 @@ For each remaining step in `plan.md`, starting from the resume point when applic
 
 1. **Implement** the step's deliverables. If TDD is on: failing test first, then implementation. Reference the patterns and file paths called out in plan.md's Research section — `/prep` did that discovery already.
 
-2. **Run the gate command** from plan.md.
-   - **Gate passes + checkpoints on**: create a conventional checkpoint commit (`feat(scope): step N — <subject>` or appropriate type). Use `/create-commit` semantics.
-   - **Gate passes + checkpoints off**: continue, no commit yet.
-   - **Gate fails**: do not move on. Create a WIP commit only if checkpoints are on (`wip(scope): step N — <subject> [gate failed]`). Report the failure and pause.
+2. **Run the step's targeted checks** from plan.md; for the final validation step, use item 5 instead of running its checks twice. Run broader checks early for cross-module changes or when failure would invalidate later work. If an existing plan specifies only a gate, use that gate rather than inventing narrower coverage. Honor repository-required per-step checks.
+   - **Checks pass + checkpoints on**: create a conventional checkpoint commit (`feat(scope): step N — <subject>` or appropriate type). Use `/create-commit` semantics; a checkpoint is not a full-gate or acceptance claim.
+   - **Checks pass + checkpoints off**: continue, no commit yet.
+   - **Checks fail**: do not move on. Create a WIP commit only if checkpoints are on (`wip(scope): step N — <subject> [checks failed]`). Report the failure and pause.
 
-3. **Update diary.md.** Append a step entry capturing what was done, why, and any deviation from plan. (See diary spec below — this fidelity is what `/rehydrate` depends on.)
+3. **Update diary.md.** Append a step entry capturing what was done, why, and any deviation from plan. Record check commands, candidate/input identities, outcomes, and log locations using `/prep`'s verification-result reuse policy, so later stages can establish whether a result is still valid. (See diary spec below — this fidelity is what `/rehydrate` depends on.)
 
 4. **Check for divergence.** If you discovered the plan doesn't fit reality (missing dep, wrong file structure, an acceptance criterion that needs renegotiating, an unanticipated subtask), do not push through. Stop, write the divergence into diary.md, and ask the user: continue / amend the plan inline / re-enter `/prep`.
 
-5. **Final step**: run the full gate, walk the verification plan, confirm each acceptance criterion. This is always the last entry in plan.md and the last entry in diary.md.
+5. **Final step**: run the full local gate once on the final ticket candidate before independent review, walk the verification plan, and record each acceptance criterion's result or pending proof. Reuse an already recorded identical run only under `/prep`'s reuse policy. Plan proof early but leave capture to `/prove` after review fixes settle, or to the named parent under wave proof placement. Deferred proof is not a passed criterion. This is always the last implementation step in plan.md and diary.md.
 
 ## diary.md format
 
@@ -64,6 +64,7 @@ For each remaining step in `plan.md`, starting from the resume point when applic
 **What**: <2-3 lines: concrete actions>
 **Why**: <key decisions and rationale>
 **Deviations**: <none | what differed from plan, and why>
+**Checks**: <command, candidate/input identities, result, log location; targeted or full gate>
 
 ## Step 2: ...
 ```
@@ -92,5 +93,5 @@ Use the squash form when squashing:
 
 - Always write diary.md. There is no opt-out; `/rehydrate` depends on it.
 - Stay aligned with the optimization target. When in doubt between two approaches, pick the one closer to what plan.md says to optimize for.
-- Pause on gate failures and on divergence. Don't silently amend the plan to match what you did.
+- Pause on failed checks and on divergence. Don't silently amend the plan to match what you did.
 - Plain text only. No emojis in code, comments, commits, or diary.
