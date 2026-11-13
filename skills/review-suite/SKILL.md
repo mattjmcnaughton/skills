@@ -3,7 +3,7 @@ name: review-suite
 description: Runs relevant code-quality, correctness, security, deployment-risk, and ship-hygiene reviews on a local diff and deduplicates findings. Use for "full review" or "run the reviews" before committing or pushing. Acceptance evidence belongs to /prove.
 ---
 
-`/review-suite` runs several focused review skills in parallel and dedupes their findings into one report, printed to the terminal and saved to `.agentic/review.md`.
+`/review-suite` applies the relevant review skills, combining low-risk reviews in one reviewer or fanning out specialist reviewers for risky changes, and dedupes their findings into one report, printed to the terminal and saved to `.agentic/review.md`.
 
 It is **strictly diff-oriented**: code quality, correctness, security, deployment risk, and ship hygiene. Deployment risk traces the diff into existing workflows, persisted state, and rollout/rollback compatibility; it is not a live production audit or deployment approval. It does not read `plan.md` or check acceptance criteria — `/prove` owns that evidence.
 
@@ -54,7 +54,7 @@ Only report no diff and exit when both the tracked diff and the eligible untrack
 
 Not every diff needs every lens — running `/security-review` on a docs-only change or `/correctness-review` on a config-only change wastes a subagent and adds noise. Before fanning out, classify the diff and select the lenses whose surface it actually touches.
 
-**Bias to include.** Triage removes a lens only on *clear* evidence there is no surface for it. When in doubt, keep the lens — a wasted subagent is cheaper than a missed finding. `--all` forces the full set; `--only` / `--skip` override the selection entirely.
+**Bias to include.** Triage removes a lens only on *clear* evidence there is no surface for it. When in doubt, keep the lens. Lens coverage and reviewer count are separate decisions: combining lenses must not drop their checks. `--all` forces the full set; `--only` / `--skip` override lens selection, not the risk assessment below.
 
 Classify the changed files and content using the resolved target's stat and content commands plus its untracked file list and contents from "Target" above, then apply:
 
@@ -88,17 +88,23 @@ Install or enable them for this client and refresh discovery, then retry;
 or re-run with --skip security-review.
 ```
 
-## Fan-out
+## Reviewer allocation
 
-**When subagent spawning is available, prefer it.** Spawn one subagent per **selected** lens (from [Triage](#triage-select-the-relevant-lenses)), in parallel, in a single message (e.g. multiple `Task`/`Agent` tool calls in one turn). Each subagent runs its skill against the resolved target diff and returns a JSON array of findings, except deployment risk, which returns the assessment object described below. This is the preferred path: it isolates each lens in its own context and runs them concurrently.
+Classify review risk from the complete diff and its callers before dispatch. Low-risk means a localized, understood change with no security-sensitive boundary, migration/persisted-state change, concurrency/lifetime issue, broad contract change, or uncertain deployment impact. Small file count alone does not establish low risk. Any such surface or uncertainty requires specialist fan-out; an explicit request for separate reviewers does too.
 
-If subagent fan-out is **not** available in the current harness (no `Task`/`Agent` tool, or the environment can't spawn parallel subagents), fall back to running each sub-skill sequentially in the main conversation. The fallback produces the same findings JSON per skill and feeds the same dedupe step — only the concurrency and context isolation are lost. Note in the report which path was used.
+- **Low-risk:** assign one reviewer independent of the implementer to apply every selected lens, loading each lens's instructions and reusing code discovery. Return results keyed by lens name: each value uses that lens's output contract below, including the deployment-risk assessment object when selected. Keep separate coverage and finding sources even though one agent performs the work.
+- **High-risk or uncertain:** spawn one reviewer per selected lens in parallel using supported agent tools. Each reviewer applies its lens to the same target and untracked paths, with the output contract below.
+- If a combined reviewer discovers a risky surface or uncertainty, report it and escalate to specialist fan-out before declaring review complete. Retain useful findings; do not present the combined pass as equivalent to separate perspectives.
 
-Prompt shape per subagent (also the per-skill instruction in the sequential fallback):
+If the required reviewer allocation is unavailable, report the limitation and any partial coverage. Sequential execution in the main conversation may supply findings, but self-review is not independent and a single reviewer is not specialist fan-out. Where the caller requires independence, leave that stage incomplete rather than silently weakening it. Record risk, allocation, rationale, and any limitations in `Review execution:` in the report. Availability checks for selected lenses still apply in every mode.
+
+Prompt shape per lens (also used for each lens within a combined review or disclosed sequential fallback):
 
 > Run `/<sub-skill>` for `/review-suite` on the diff produced by `<diff command>`. This is a findings-only suite invocation: do not offer or apply fixes, stage files, rewrite commits, or write report files. The suite owns the combined report. Use this output contract instead of standalone prose, scoring footers, or follow-up prompts. Return ONLY a JSON array of findings, no prose around it. Each finding: `{"file": str, "line": int, "line_end": int|null, "severity": "critical|warn|nit", "summary": str, "rationale": str|null, "source": "<sub-skill>"}`. Use `line` = `line_end` for single-line findings. If the review completed without findings, return `[]`. If it cannot complete, surface the failure to the suite rather than returning a misleading empty array.
 
 For `/deployment-risk-review`, replace the array-only output instruction with: "Return ONLY the `{assessment, findings}` JSON object specified by your skill, including an assessment even when findings is empty." Keep the same target and read-only restrictions. Supply any known deployment facts, identifying assumptions explicitly; the Git comparison base is not necessarily the deployed version. This exception also applies to sequential invocation. A bare array from this lens is a contract failure, not a completed risk assessment.
+
+For a combined reviewer, replace the single-lens return instruction with one JSON object keyed by selected lens name, containing each lens's array or assessment object. Do not request several incompatible top-level outputs. Check that every selected lens has a completed result before dedupe; a missing result is incomplete coverage, not an empty findings array.
 
 Notes per skill:
 
@@ -137,6 +143,8 @@ Always save the report to `.agentic/review.md` relative to the current worktree'
 
 Print the same report to the terminal and identify its saved path. Include the run time, target, completion status, lens coverage, and deduped findings. For no diff, write `Status: no diff`; for a completed review with no findings, write `Status: completed` and `No findings.`. For invalid arguments, unresolved targets, missing skills, or failed lenses, write `Status: incomplete`, the reason, any partial findings, and what did not run. Never describe an incomplete review as clean. If the report cannot be written, report the write failure explicitly and do not claim the report was saved.
 
+Include `Review execution:` with low/high/uncertain review risk, the allocation used, its reason, and independence or escalation limitations. For an early exit, say allocation was not run and why. Review risk controls reviewer allocation; it does not replace the deployment-risk assessment.
+
 Always include `Deployment risk:`. When the lens ran, print its overall category, assessment completeness, baseline assumptions, surface table, and unknowns. If its assessment is incomplete, mark the overall report `Status: incomplete` too, retaining known ratings and findings. When skipped, blocked, or not run, say `not assessed (<reason>)`; never infer low risk from zero findings or a skipped lens. For no diff, say `not assessed (no diff)`. A completed assessment can still describe high or critical deployment risk.
 
 ```
@@ -145,6 +153,7 @@ Run: <ISO timestamp>
 Status: completed
 Target: <diff scope>
 Triage: ran thermo-nuclear, ship-gate, correctness, deployment-risk  |  skipped ponytail (pure deletion), security (no external surface)
+Review execution: high risk; specialist fan-out (persisted-state compatibility change); independent reviewers
 Deployment risk: high; assessment complete
 Baseline: <deployment evidence or explicit assumptions>
 Surfaces: <workflow/data, risk, confidence, behavior classification, timing, impact/recovery, evidence, safeguards/mitigations>
@@ -162,8 +171,8 @@ If every selected sub-skill completed with an empty findings array (including th
 ## Guidelines
 
 - Triage first, then fail closed on what triage selected — a *selected* lens that isn't installed stops the run; a *deselected* one is ignored. Skipping by triage is deliberate and shown in the `Triage:` line, never silent.
-- Bias triage toward inclusion — a wasted subagent is cheaper than a missed finding. Use `--all` to force the full set when in doubt.
-- Prefer fanning sub-skills out as parallel subagents when the harness supports it; only chain them sequentially as a fallback when subagent spawning is unavailable.
+- Bias lens coverage toward inclusion. Use `--all` to force the full set when in doubt; reviewer allocation still follows risk.
+- Combine lenses only for established low-risk changes; retain separate specialist perspectives for risky or uncertain changes and disclose unavailable allocation.
 - Trust each sub-skill's own judgment about what counts as a finding — do not re-filter or re-categorize beyond the dedupe step.
 - The suite is diff review only. If the user asks for acceptance-criteria checks or evidence that the change works, point them at `/prove` rather than expanding scope here.
 - Plain text only in terminal output. No emojis.

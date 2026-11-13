@@ -81,7 +81,7 @@ Apply approved decisions and verify them using the same execution loop. Preserve
 
 ## 5. Verify and hand off
 
-- Inspect the combined diff for unintended changes and run the relevant broader checks, including the gate specified in `plan.md`, after the fixes are integrated. Report failed or unavailable checks honestly; do not mark the task complete while relevant verification is blocked.
+- Inspect the combined diff for unintended changes and run affected targeted checks after the fixes are integrated. Apply `/prep`'s verification-result reuse policy: retain a full-gate result only for an unchanged candidate and matching recorded inputs; otherwise rerun the full gate specified in `plan.md` before handoff. Record commands, candidate/input identities, results, and log locations in the diary. Report failed or unavailable checks honestly; do not mark the task complete while relevant verification is blocked.
 - Do not automatically rerun the full review suite until it is clean. Targeted checks and a combined-diff inspection are the default; a new full review is a separate user choice. Acceptance-evidence packaging remains with `/prove`.
 - On reruns, resume the existing table. Recheck unresolved findings against current code, preserve previous user decisions, and append newly supplied findings without duplicating existing root causes. Reopen a resolved finding only when new code or evidence invalidates its disposition, recording why; ask before changing a prior user decision.
 - If the report has no findings, report that no resolution work is needed; do not fabricate fixes or run unrelated checks.

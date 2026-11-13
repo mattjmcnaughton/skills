@@ -33,12 +33,13 @@ work; default to a dispatch cutoff with safe checkpointing of active workers.
 Keep all progress in the outer diary and per-ticket task records. This skill is
 active-session execution, not a scheduler or a promise to survive process loss.
 
-Agree the run contract's full/lite choices, ticket/wave proof placement, and
-optional read-only prep-ahead policy once for this run. Carry them forward rather
-than asking every wave. Prep may overlap the current wave for a later selected
-ticket, including a dependent, but does not start the next implementation wave.
-Retain its provisional handoff and inspected revision for later revalidation.
-Wave proof means the end of each wave, not the end of the entire multi-wave run.
+Agree the run contract's setup choices (full/lite workflow, ticket/wave proof
+placement, read-only prep-ahead, checkpoint/TDD, grilling preference, and
+publication unit) once for this run. Carry them forward rather than asking every
+wave. Prep may overlap the current wave for a later selected ticket, including a
+dependent, but does not start the next implementation wave. Retain its
+provisional handoff and inspected revision for later revalidation. Wave proof
+means the end of each wave, not the end of the entire multi-wave run.
 
 ## Repeat deliberately
 
@@ -48,17 +49,25 @@ Wave proof means the end of each wave, not the end of the entire multi-wave run.
 2. Refresh dependency readiness and priorities within the selected set. A ticket
    blocked on policy, approval, or failed acceptance stays blocked until its
    recorded condition changes. Do not retry unchanged failures indefinitely.
-   Exclude already implemented and verified tickets from new implementation
-   waves even if publication is pending; resume only their remaining delivery
-   steps when permitted, never rebuild them to satisfy the delivery target.
+   Exclude implementation-complete tickets from fresh implementation waves even
+   if proof, verification, or publication is pending; resume their remaining stages
+   on the retained candidate when permitted. Reopen implementation only when a
+   finding or changed input requires a fix, never to satisfy the delivery target
+   by rebuilding completed work.
 3. Choose one finite, independent wave under the remaining budget. Call `/run-wave`
    with the exact integration base, project policy, permissions, delivery owner,
-   workflow/proof/prep policies, worker limits, and handoff destination. Do not
-   overlap successive implementation/integration waves; read-only prep is the
+   workflow/proof/prep policies and other run-level choices, worker limits,
+   handoff destination, and reusable research/setup references. Let `/run-wave`
+   identify and perform common work; do not repeat its ticket research here. Do
+   not overlap successive implementation/integration waves; read-only prep is the
    only permitted lookahead.
 4. Wait for its workers and integration outcome while handling permitted work.
-   Verify its report and record completed, blocked, and failed tickets plus the
-   new verified baseline. Do not advance the baseline past failed integration.
+   Reconcile its compact report against retained revisions, stage/check/evidence
+   references, and delivery state. Investigate gaps or contradictions, not every
+   completed ticket again. Record completed, blocked, failed, and proof-pending
+   tickets plus the new verified baseline. Do not advance the baseline past failed
+   integration or pending acceptance, including deferred proof. Carry valid shared
+   findings forward and refresh only entries invalidated by changed/unknown inputs.
 5. Continue only if another selected ticket is ready and limits allow it. Use
    locally integrated prerequisites when appropriate, but retain publication
    blocks separately: local readiness is not completion of a PR/merge target.

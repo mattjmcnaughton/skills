@@ -23,11 +23,17 @@ Read `.agentic/<slug>/ticket.json` or `ticket.md` if present. JSON metadata and 
 
 Conduct a conversational interview to fill the sections below. Build on the user's answers; don't run through a flat script. Pull from available ticket context and codebase exploration to make questions specific.
 
+When an orchestrator supplies approved requirements, workflow choices, or shared research, reuse them and ask only about missing decisions, contradictions with current code, or consequential tradeoffs. Preserve the supplied acceptance criteria rather than forcing them into the suggested count below. Reference shared findings by source path and revision; inspect ticket-specific code and callers instead of repeating repository-wide research. Recheck findings when their source changes or they do not apply to this ticket or environment.
+
 May fan out to Explore sub-agents in parallel when research spans multiple domains or a subsystem needs deep reading. Use them to find implementation templates (existing features that solve analogous problems) and test fixtures.
 
 ### Grilling offers
 
-Outside the lite workflow above, at three points in this flow, offer to run a grilling skill. Pick which one by checking the repo root:
+The lite workflow above skips optional grilling unless requested.
+
+For a full-mode orchestrated run, use the recorded run-level grilling preference. If missing, ask once at the outermost preparation and record whether to skip optional grilling or offer it when an unresolved decision needs stress-testing. Workers inherit that choice; neither an offer preference nor permission to prepare authorizes running a grilling skill without acceptance. Missing requirements still need answers even when optional grilling is declined.
+
+For standalone preparation without a run-level preference, retain the three offer points below. Pick the skill by checking the repo root:
 
 - If `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` exists → offer `/grill-with-docs`.
 - Otherwise → offer `/grill-me`.
@@ -50,11 +56,11 @@ Each offer is a single sentence ("Want to grill this before we move on?"). The u
 
 **Acceptance criteria.** 3-5 testable bullets. Each must have a concrete verification (a test, a command, a demonstration). Avoid "code is clean" — say "API returns 200 for valid input". For measurable improvements (latency, error rate), include baseline + target + how to measure.
 
-**Verification plan.** How `/build` and the user will confirm the work. Specific commands to run, URLs to visit, what output looks like when correct. Designed *now* so `/build` knows how to present its work and the user knows what to check before committing.
+**Verification plan.** How `/build` and the user will confirm the work. Specify targeted checks per step, the full local gate before independent review, and expected results. Run broader checks earlier when a change crosses module boundaries or failure would invalidate later work. Plan proof artifacts and counterfactuals early, but capture after review fixes settle. With wave proof placement, name the claims deferred to the integrated candidate, their ticket base, and the parent responsible for them. Deferral does not remove a claim or grant capture approval.
 
 **Research / context.** Codebase patterns and file paths the implementation will mirror. External docs or best practices. Domain concepts. Be concrete with paths and function names; this is what `/build` reads to avoid re-discovering everything.
 
-**Environment readiness.** This is non-optional. Before declaring `/prep` done, verify the agent has what it needs to work independently:
+**Environment readiness.** This is non-optional. Reuse recorded shared command discovery and setup results only when their revision, dependencies, configuration, and environment match. A successful boot in another worker environment does not establish readiness here; verify environment-specific assumptions. Recheck affected setup when those inputs change or are unknown. Before declaring `/prep` done, establish:
 
 1. **Test commands.** Identify the gate (`just gate`, `npm test`, `pytest`, etc.) from `justfile`, `CLAUDE.md`, `AGENTS.md`, or by asking. Then dry-run each: `just --list`, `npm test --help`, etc. Record exact commands.
 2. **Dev runtime.** If the task touches a runnable surface (web app, CLI, service), confirm it boots from a clean state — `just dev` or equivalent. If it can't, surface the blocker now.
@@ -62,6 +68,12 @@ Each offer is a single sentence ("Want to grill this before we move on?"). The u
 If anything is broken or missing, list it as a blocker at the top of plan.md. Don't continue silently.
 
 **Implementation approach.** Step-by-step. Each step: what to do, which files to touch, which acceptance criteria it advances. Order so each step leaves the tree compilable. End with a "Validation and Verification" step that runs the gate and the verification plan.
+
+### Verification result reuse
+
+Record checks in the existing diary with the exact command, candidate revision and any uncommitted content identity, dependency/configuration and non-secret environment/fixture identity, outcome, and retained log/evidence location. A commit alone is insufficient when the checked tree includes uncommitted or untracked inputs.
+
+Later stages may reuse a successful result only when the complete checked candidate content, command, dependencies, configuration, environment, and fixtures are unchanged and the record establishes that match. If any input differs or is unknown, rerun; do not infer that an unrelated-looking edit is harmless. Repository-required checks and required CI on the delivered head still apply. A new integrated candidate needs combined verification. Passing regression checks do not become counterfactual proof; `/prove` owns proof validity and reuse.
 
 ## plan.md template
 
@@ -80,9 +92,12 @@ If anything is broken or missing, list it as a blocker at the top of plan.md. Do
 2. ...
 
 ## Verification plan
-- Commands to run: <...>
+- Per-step targeted checks and early broader checks: <commands, timing, reasons>
+- Full local gate before review: <command>
 - URLs / surfaces to inspect: <...>
 - Expected outputs: <...>
+- Proof timing: <claims/artifacts, counterfactual bases, wave proof placement and parent owner if selected; capture approval still required>
+- Result reuse: <diary records with candidate/input identities and logs; rerun on changed or unknown inputs>
 
 ## Research
 **Patterns to mirror**: <files, functions, with paths>
@@ -99,13 +114,14 @@ If anything is broken or missing, list it as a blocker at the top of plan.md. Do
 - <action>
 - Files: <paths>
 - Acceptance criteria advanced: <numbers>
+- Targeted checks: <commands and expected results>
 
 ### Step 2: ...
 
 ### Final step: Validation and verification
 - Run gate: <command>
 - Walk through verification plan
-- Confirm each acceptance criterion passes
+- Record each acceptance criterion's result or pending proof and owner; do not label pending proof passed
 ```
 
 ## Guidelines
