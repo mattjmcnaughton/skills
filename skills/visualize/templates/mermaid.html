@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+{{HEAD}}
+<style>
+  body { margin: 2rem; font: 15px/1.5 system-ui, sans-serif; color: #1f2328; background: #fff; }
+  h1 { margin: 0 0 1.25rem; font-size: 1.1rem; font-weight: 600; }
+  #viz-target { overflow: auto; }
+  #viz-target svg { max-width: 100%; height: auto; }
+  #viz-error { color: #b42318; white-space: pre-wrap; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body data-viz-status="pending">
+<h1>{{TITLE}}</h1>
+<pre id="viz-source" hidden>{{BODY}}</pre>
+<div id="viz-target"></div>
+<pre id="viz-error" hidden></pre>
+<script>
+async function render(source, target) {
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+  const { svg } = await mermaid.render("viz-diagram", source);
+  target.innerHTML = svg;
+}
+</script>
+<script>
+  (async () => {
+    try {
+      await render(document.getElementById("viz-source").textContent, document.getElementById("viz-target"));
+      document.body.dataset.vizStatus = "ok";
+    } catch (error) {
+      document.body.dataset.vizStatus = "error";
+      const box = document.getElementById("viz-error");
+      box.hidden = false;
+      const message = String((error && error.message) || error);
+      box.textContent = error instanceof ReferenceError
+        ? message + "\nA library did not load: no network access, or its integrity check failed."
+        : message;
+    }
+  })();
+</script>
+</body>
+</html>
