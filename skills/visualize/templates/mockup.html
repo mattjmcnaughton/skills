@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+{{HEAD}}
+<style>
+{{APP_CSS}}
+</style>
+<style>
+  /* Page chrome. Prefixed classes, declared after the app CSS so they win. */
+  .viz-title { margin: 1.5rem; font: 600 1.1rem/1.4 system-ui, sans-serif; color: #1f2328; }
+  .viz-row { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1.5rem; align-items: flex-start; }
+  .viz-frame { position: relative; margin: 0; padding: 1rem; border: 1px dashed #8c959f; background: #fff; }
+  .viz-frame > figcaption { margin: -1rem -1rem 1rem; padding: .35rem .75rem; font: 600 12px/1.4 system-ui, sans-serif; color: #57606a; background: #f6f8fa; border-bottom: 1px dashed #8c959f; }
+  .viz-frame img.viz-shot { display: block; max-width: 100%; }
+  .viz-mark { position: absolute; z-index: 10; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 700 12px/1 system-ui, sans-serif; color: #fff; background: #cf222e; box-shadow: 0 0 0 2px #fff; }
+  .viz-highlight { outline: 3px solid #cf222e; outline-offset: 2px; }
+  .viz-notes { margin: 1.5rem; padding-left: 1.5rem; font: 14px/1.5 system-ui, sans-serif; color: #1f2328; }
+</style>
+</head>
+<body>
+<h1 class="viz-title">{{TITLE}}</h1>
+{{BODY}}
+</body>
+</html>

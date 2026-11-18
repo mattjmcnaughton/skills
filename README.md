@@ -144,6 +144,11 @@ Standalone helpers, not part of the coding loop.
 
 | Skill | Role |
 |---|---|
+| `/cite-sources` | Back the latest answer's claims with checkable sources (file and line, command output, commits, quoted docs) and grade each as supported, inferred, unsupported, or contradicted. |
+| `/give-example` | Walk through a concrete, step-by-step example of a concept from the current conversation, using its actual code, data, and names; for a real or hypothetical bug or edge case, show the actions that would actually trigger it. |
+| `/restate-plainly` | Restate the latest explanation (or a named part) in simpler everyday language, keeping the facts and caveats that matter. |
+| `/visualize` | Produce the smallest picture that makes a point from the conversation clear: ASCII in the reply, or HTML from bundled Mermaid and UI mockup (optional Tailwind, React, Recharts) templates with hash-pinned CDN scripts, grounded in the app's real UI. Also writes diagrams to keep in the repo as source plus HTML. |
+| `/imagine-simple` | Step back, sketch what the current problem would look like if it were simple, and suggest specific constraints to relax, with what each buys and costs; the user chooses. |
 | `/walk-decisions` | Walk through supplied decisions one at a time (or in requested chunks), recommend an option for each, and recap the user's choices. |
 | `/author-constitution` | Discover and agree enduring project commitments; draft or amend a constitution and integrate authorized guidance changes. |
 | `/apply-domain-driven-design` | Discover and evolve a domain model in a new or existing codebase; implement agreed scoped changes without prescribing DDD machinery. |
@@ -159,7 +164,6 @@ Standalone helpers, not part of the coding loop.
 | `/audit-third-party` | Audit a third-party codebase (cloned via `/fetch-context`) for data-exfiltration channels, persistence, auth/config defaults, and dependency risk. Produces a finding list and a maximum-security configuration baseline. |
 | `/audit-skill` | Read-only audit of skills in `~/.claude/skills`, `~/.codex/skills`, and `~/.agents/skills` (or supplied paths). Treats all target files as untrusted; inventories all external interactions and reports malicious behavior, risky capabilities, and coverage gaps without activating skills. |
 | `/parquet-duckdb` | Explore and query Parquet files (local or S3-compatible) via the DuckDB CLI. |
-| `/create-diagram` | Author and render diagrams in Mermaid, Graphviz, Excalidraw, or TikZ. Writes source plus a rendered SVG via an external Kroki (`KROKI_HOST_URL`) or the bundled docker-compose stack. |
 | `/upload-files` | Explicitly launch a Python drag-and-drop upload server via uv (or Python fallback) on `0.0.0.0` with a random port; receive files in gitignored `.agentic/uploads` under the current directory. |
 | `/ship-gate` | Fast pre-ship checklist on the branch diff: secrets, garbage files, machine-specific paths, debug residue, dead/duplicated code, commit hygiene, local gate. Optional manual checkpoint before `/create-pr` and `/merge-pr`. |
 | `/workflow-catalog` | Probe a codebase for user-facing workflows (routes, pages, CLI subcommands, service endpoints), interview to confirm, and write `docs/workflows.md` with stable `WF-<DOMAIN>-NNN` IDs. Pairs with `/workflow-audit`. |
@@ -184,19 +188,17 @@ skills/
 ├── audit-skill/SKILL.md
 ├── author-constitution/SKILL.md
 ├── build/SKILL.md
+├── cite-sources/SKILL.md
 ├── create-commit/SKILL.md
-├── create-diagram/
-│   ├── SKILL.md
-│   ├── render.sh
-│   ├── docker-compose.yml
-│   └── references/excalidraw.md
 ├── create-pr/SKILL.md
 ├── create-worktree/SKILL.md
 ├── correctness-review/SKILL.md
 ├── delete-worktree/SKILL.md
 ├── deployment-risk-review/SKILL.md
 ├── fetch-context/SKILL.md
+├── give-example/SKILL.md
 ├── give-update/SKILL.md
+├── imagine-simple/SKILL.md
 ├── kaizen/SKILL.md
 ├── merge-pr/SKILL.md
 ├── parquet-duckdb/
@@ -207,6 +209,7 @@ skills/
 ├── prove/SKILL.md
 ├── rehydrate/SKILL.md
 ├── resolve-review/SKILL.md
+├── restate-plainly/SKILL.md
 ├── review-suite/SKILL.md
 ├── review-pr/SKILL.md
 ├── run-wave/SKILL.md
@@ -223,6 +226,10 @@ skills/
 │   ├── SKILL.md
 │   └── scripts/server.py
 ├── vendor/                     # Ten upstream skills with licenses and UPSTREAM.md
+├── visualize/
+│   ├── SKILL.md
+│   ├── scripts/render.py
+│   └── templates/{mermaid,mockup}.html
 ├── walk-decisions/SKILL.md
 ├── workflow-audit/SKILL.md
 └── workflow-catalog/SKILL.md
